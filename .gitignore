@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.so
+*.dylib
+.DS_Store
+.env
+.env.*
+*.gguf
+*.safetensors
+*.pt
+*.pth
+output/
+models/
