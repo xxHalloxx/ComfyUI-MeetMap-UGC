@@ -2664,177 +2664,109 @@
     "linearData": {
       "inputs": [
         [
-          "meetmap-ugc-v2-flux-reference-ltx:75:video_count",
-          "Video count"
+          75,
+          "video_count"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:75:base_seed",
-          "Base seed"
+          75,
+          "base_seed"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:75:seed_mode",
-          "Seed mode"
+          75,
+          "seed_mode"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:75:save_run_folder",
-          "Save run folder"
+          75,
+          "save_run_folder"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:75:filename_root",
-          "Advanced · Output root"
+          75,
+          "filename_root"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:1:optional_topic",
-          "Topic (AUTO or custom)"
+          1,
+          "optional_topic"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:1:person_presentation",
-          "Person presentation"
+          1,
+          "person_presentation"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:1:room_type",
-          "Room type"
+          1,
+          "room_type"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:1:duration_override",
-          "Duration override"
+          1,
+          "duration_override"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:1:content_style",
-          "Content style"
+          1,
+          "content_style"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:1:seed",
-          "Content AI seed"
+          59,
+          "reference_folder"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:59:reference_folder",
-          "Creator reference folder"
+          59,
+          "max_references"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:59:max_references",
-          "Max creator references"
+          59,
+          "selection_mode"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:59:selection_mode",
-          "Reference selection"
+          65,
+          "threshold"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:65:threshold",
-          "Advanced · Face detection threshold"
+          65,
+          "dilation"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:65:dilation",
-          "Advanced · Face mask dilation"
+          67,
+          "mask_expand_pixels"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:67:mask_expand_pixels",
-          "Advanced · Face mask expansion"
+          67,
+          "mask_blend_pixels"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:67:mask_blend_pixels",
-          "Advanced · Stitch blend pixels"
+          67,
+          "context_from_mask_extend_factor"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:67:context_from_mask_extend_factor",
-          "Advanced · Face context factor"
+          67,
+          "output_target_width"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:67:output_target_width",
-          "Advanced · Face crop width"
+          67,
+          "output_target_height"
         ],
         [
-          "meetmap-ugc-v2-flux-reference-ltx:67:output_target_height",
-          "Advanced · Face crop height"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:68:text",
-          "Advanced · Face realism edit prompt"
+          68,
+          "text"
         ]
       ],
       "outputs": [
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:75:progress",
-          "Batch · Progress"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:75:filename_prefix",
-          "Batch · Output filename"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:1:topic",
-          "AI · Generated topic"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:1:hook",
-          "AI · Generated hook"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:1:spoken_script_de",
-          "AI · Spoken script (German)"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:1:image_prompt",
-          "AI · FLUX image prompt"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:1:video_prompt",
-          "AI · LTX video prompt"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:1:duration_seconds",
-          "AI · Duration"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:1:acting_beats",
-          "AI · Acting beats"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:56:prompt",
-          "AI · Final LTX relay prompt"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:62:images",
-          "References · Active creator references"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:29:IMAGE",
-          "Stage 1 · Raw FLUX startframe"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:66:IMAGE",
-          "Stage 2 · Detected face mask"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:67:cropped_image",
-          "Stage 3 · Face crop before refinement"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:68:IMAGE",
-          "Stage 4 · Face crop after FLUX.2 refinement"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:69:image",
-          "Stage 5 · Face stitched back"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:49:IMAGE",
-          "Stage 6 · Final LTX startframe"
-        ],
-        [
-          "meetmap-ugc-v2-flux-reference-ltx:58:video",
-          "Final · MeetMap UGC video"
-        ]
+        62,
+        50,
+        70,
+        71,
+        72,
+        73,
+        54,
+        58
       ]
     },
     "app": {
       "name": "MeetMap UGC Generator",
-      "description": "Generate 1–10 distinct MeetMap UGC videos in one run. Each batch item regenerates the AI concept, script, prompts, FLUX.2 startframe, face realism pass and LTX 2.5 video with independent seeds."
+      "description": "Generate 1–10 distinct MeetMap UGC videos with reference previews, FLUX startframes, face-realism stages and final LTX output."
     }
   },
   "version": 0.4,
   "revision": 0,
-  "id": "meetmap-ugc-v2-flux-reference-ltx",
+  "id": "1f7a8b14-3ed6-4fe2-a0d7-5d8c72e61fb1",
   "definitions": {
     "subgraphs": [
       {
