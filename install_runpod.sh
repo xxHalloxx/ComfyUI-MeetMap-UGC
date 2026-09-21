@@ -79,7 +79,6 @@ required_core = {
     "LoadImage", "PreviewImage", "SaveImage", "ImageScaleToTotalPixels", "VAEEncode", "ReferenceLatent",
     "UNETLoader", "CLIPLoader", "VAELoader", "Flux2Scheduler", "EmptyFlux2LatentImage",
     "SamplerCustomAdvanced", "CFGGuider", "RandomNoise", "KSamplerSelect",
-    "6e397a2b-68f7-48f6-8930-f3a5491a163c",
 }
 missing = sorted(required_core - set(nodes.NODE_CLASS_MAPPINGS))
 if missing:
