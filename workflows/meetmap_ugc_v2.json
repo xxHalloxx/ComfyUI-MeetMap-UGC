@@ -1,6 +1,6 @@
 {
-  "last_node_id": 62,
-  "last_link_id": 61,
+  "last_node_id": 65,
+  "last_link_id": 48,
   "nodes": [
     {
       "id": 1,
@@ -217,10 +217,7 @@
           "type": "VAE",
           "links": [
             24,
-            51,
-            52,
-            53,
-            57
+            45
           ]
         }
       ],
@@ -395,12 +392,12 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 60
+          "link": 47
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 61
+          "link": 48
         }
       ],
       "outputs": [
@@ -671,684 +668,6 @@
       "title": "FLUX DECODED STARTFRAME"
     },
     {
-      "id": 30,
-      "type": "LoadImage",
-      "pos": [
-        40,
-        420
-      ],
-      "size": [
-        310.82613643273794,
-        390.32181829238084
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            42
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "Node name for S&R": "LoadImage",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "image": true,
-            "upload": true
-          },
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        },
-        "models": []
-      },
-      "widgets_values": [
-        "meetmap_refs/creator_01/face_front.png",
-        "image"
-      ],
-      "title": "REFERENCE 1 – FACE FRONT"
-    },
-    {
-      "id": 31,
-      "type": "ImageScaleToTotalPixels",
-      "pos": [
-        390,
-        420
-      ],
-      "size": [
-        270,
-        106
-      ],
-      "flags": {},
-      "order": 17,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 42
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            43,
-            48
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "Node name for S&R": "ImageScaleToTotalPixels",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "upscale_method": true,
-            "megapixels": true,
-            "resolution_steps": true
-          },
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "nearest-exact",
-        1,
-        1
-      ],
-      "title": "REFERENCE 1 – FACE FRONT – PROCESSED"
-    },
-    {
-      "id": 32,
-      "type": "PreviewImage",
-      "pos": [
-        720,
-        420
-      ],
-      "size": [
-        300,
-        100
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 43
-        }
-      ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "PreviewImage"
-      },
-      "widgets_values": null,
-      "title": "PREVIEW – REF 1 FACE FRONT"
-    },
-    {
-      "id": 33,
-      "type": "27eacb9f-0da2-421d-a0bf-b4b4e5fe5709",
-      "pos": [
-        1010,
-        420
-      ],
-      "size": [
-        240,
-        86
-      ],
-      "flags": {},
-      "order": 21,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "positive",
-          "name": "conditioning",
-          "type": "CONDITIONING",
-          "link": 10
-        },
-        {
-          "label": "negative",
-          "name": "conditioning_1",
-          "type": "CONDITIONING",
-          "link": 9
-        },
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 48
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 51
-        }
-      ],
-      "outputs": [
-        {
-          "label": "positive",
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            11
-          ]
-        },
-        {
-          "label": "negative",
-          "name": "CONDITIONING_1",
-          "type": "CONDITIONING",
-          "links": [
-            12
-          ]
-        }
-      ],
-      "properties": {
-        "proxyWidgets": [],
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [],
-      "title": "REFERENCE 1 – FACE FRONT – REFERENCE LATENT"
-    },
-    {
-      "id": 34,
-      "type": "LoadImage",
-      "pos": [
-        40,
-        460
-      ],
-      "size": [
-        310.82613643273794,
-        390.32181829238084
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            44
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "Node name for S&R": "LoadImage",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "image": true,
-            "upload": true
-          },
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        },
-        "models": []
-      },
-      "widgets_values": [
-        "meetmap_refs/creator_01/face_angle.png",
-        "image"
-      ],
-      "title": "REFERENCE 2 – FACE ANGLE"
-    },
-    {
-      "id": 35,
-      "type": "ImageScaleToTotalPixels",
-      "pos": [
-        390,
-        460
-      ],
-      "size": [
-        270,
-        106
-      ],
-      "flags": {},
-      "order": 17,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 44
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            45,
-            49
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "Node name for S&R": "ImageScaleToTotalPixels",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "upscale_method": true,
-            "megapixels": true,
-            "resolution_steps": true
-          },
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "nearest-exact",
-        1,
-        1
-      ],
-      "title": "REFERENCE 2 – FACE ANGLE – PROCESSED"
-    },
-    {
-      "id": 36,
-      "type": "PreviewImage",
-      "pos": [
-        720,
-        460
-      ],
-      "size": [
-        300,
-        100
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 45
-        }
-      ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "PreviewImage"
-      },
-      "widgets_values": null,
-      "title": "PREVIEW – REF 2 FACE ANGLE"
-    },
-    {
-      "id": 37,
-      "type": "93041a64-452a-477a-9447-40330b7c1136",
-      "pos": [
-        1010,
-        460
-      ],
-      "size": [
-        240,
-        86
-      ],
-      "flags": {},
-      "order": 23,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "positive",
-          "name": "conditioning",
-          "type": "CONDITIONING",
-          "link": 11
-        },
-        {
-          "label": "negative",
-          "name": "conditioning_1",
-          "type": "CONDITIONING",
-          "link": 12
-        },
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 49
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 52
-        }
-      ],
-      "outputs": [
-        {
-          "label": "positive",
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            13
-          ]
-        },
-        {
-          "label": "negative",
-          "name": "CONDITIONING_1",
-          "type": "CONDITIONING",
-          "links": [
-            14
-          ]
-        }
-      ],
-      "properties": {
-        "proxyWidgets": [],
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [],
-      "title": "REFERENCE 2 – FACE ANGLE – REFERENCE LATENT"
-    },
-    {
-      "id": 38,
-      "type": "LoadImage",
-      "pos": [
-        40,
-        500
-      ],
-      "size": [
-        310.82613643273794,
-        390.32181829238084
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            46,
-            54
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "Node name for S&R": "LoadImage",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "image": true,
-            "upload": true
-          },
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        },
-        "models": []
-      },
-      "widgets_values": [
-        "meetmap_refs/creator_01/upper_body.png",
-        "image"
-      ],
-      "title": "REFERENCE 3 – BODY / OUTFIT"
-    },
-    {
-      "id": 39,
-      "type": "ImageScaleToTotalPixels",
-      "pos": [
-        390,
-        500
-      ],
-      "size": [
-        270,
-        106
-      ],
-      "flags": {},
-      "order": 17,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 54
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            47,
-            50,
-            55,
-            56
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "Node name for S&R": "ImageScaleToTotalPixels",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "upscale_method": true,
-            "megapixels": true,
-            "resolution_steps": true
-          },
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "nearest-exact",
-        1,
-        1
-      ],
-      "title": "REFERENCE 3 – BODY / OUTFIT – PROCESSED"
-    },
-    {
-      "id": 40,
-      "type": "PreviewImage",
-      "pos": [
-        720,
-        500
-      ],
-      "size": [
-        300,
-        100
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 47
-        }
-      ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "PreviewImage"
-      },
-      "widgets_values": null,
-      "title": "PREVIEW – REF 3 UPPER BODY"
-    },
-    {
-      "id": 41,
-      "type": "2ed799ce-77f6-44cf-8031-328bf19b81ea",
-      "pos": [
-        1010,
-        500
-      ],
-      "size": [
-        240,
-        86
-      ],
-      "flags": {},
-      "order": 24,
-      "mode": 4,
-      "inputs": [
-        {
-          "label": "positive",
-          "name": "conditioning",
-          "type": "CONDITIONING",
-          "link": 13
-        },
-        {
-          "label": "negative",
-          "name": "conditioning_1",
-          "type": "CONDITIONING",
-          "link": 14
-        },
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 50
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 53
-        }
-      ],
-      "outputs": [
-        {
-          "label": "positive",
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            58
-          ]
-        },
-        {
-          "label": "negative",
-          "name": "CONDITIONING_1",
-          "type": "CONDITIONING",
-          "links": [
-            59
-          ]
-        }
-      ],
-      "properties": {
-        "proxyWidgets": [],
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [],
-      "title": "REFERENCE 3 – BODY / OUTFIT – REFERENCE LATENT"
-    },
-    {
       "id": 42,
       "type": "CLIPTextEncode",
       "pos": [
@@ -1384,7 +703,7 @@
           "slot_index": 0,
           "links": [
             7,
-            10
+            42
           ]
         }
       ],
@@ -1440,7 +759,7 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            9
+            43
           ]
         }
       ],
@@ -1774,7 +1093,7 @@
         445912087,
         "randomize",
         20,
-        5.0,
+        5,
         "dpmpp_2m_sde",
         "karras",
         0.1,
@@ -1783,7 +1102,7 @@
         true,
         0.5,
         10,
-        3.0,
+        3,
         "center-1",
         0,
         0.93,
@@ -2302,15 +1621,15 @@
       "title": "OUTPUT – MEETMAP UGC V2 VIDEO"
     },
     {
-      "id": 59,
-      "type": "LoadImage",
+      "id": 63,
+      "type": "MeetMapReferenceFolderLoader",
       "pos": [
         40,
-        1080
+        430
       ],
       "size": [
-        310.82613643273794,
-        390.32181829238084
+        330,
+        210
       ],
       "flags": {},
       "order": 9,
@@ -2318,117 +1637,67 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "IMAGE",
+          "name": "references",
+          "type": "MEETMAP_REFERENCE_SET",
+          "links": [
+            44
+          ]
+        },
+        {
+          "name": "preview_images",
           "type": "IMAGE",
+          "links": [
+            46
+          ]
+        },
+        {
+          "name": "reference_count",
+          "type": "INT",
           "links": []
         },
         {
-          "name": "MASK",
-          "type": "MASK",
+          "name": "filenames",
+          "type": "STRING",
           "links": []
         }
       ],
       "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "Node name for S&R": "LoadImage",
+        "Node name for S&R": "MeetMapReferenceFolderLoader",
         "enableTabs": false,
         "tabWidth": 65,
         "tabXOffset": 10,
         "hasSecondTab": false,
         "secondTabText": "Send Back",
         "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "image": true,
-            "upload": true
-          },
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
+        "secondTabWidth": 65
       },
       "widgets_values": [
-        "meetmap_refs/creator_01/skin_closeup.png",
-        "image"
+        "meetmap_refs/creator_01",
+        12,
+        "profile_priority",
+        false
       ],
-      "title": "REFERENCE 4 – SKIN CLOSEUP"
+      "title": "DYNAMIC CREATOR REFERENCES – 1 TO 12+"
     },
     {
-      "id": 60,
-      "type": "ImageScaleToTotalPixels",
-      "pos": [
-        390,
-        1080
-      ],
-      "size": [
-        270,
-        106
-      ],
-      "flags": {},
-      "order": 17,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": []
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
-        "Node name for S&R": "ImageScaleToTotalPixels",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "upscale_method": true,
-            "megapixels": true,
-            "resolution_steps": true
-          },
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "nearest-exact",
-        1,
-        1
-      ],
-      "title": "REFERENCE 4 – SKIN CLOSEUP PROCESSED"
-    },
-    {
-      "id": 61,
+      "id": 64,
       "type": "PreviewImage",
       "pos": [
-        720,
-        1080
+        410,
+        430
       ],
       "size": [
-        300,
-        100
+        360,
+        250
       ],
       "flags": {},
-      "order": 0,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 55
+          "link": 46
         }
       ],
       "outputs": [
@@ -2442,83 +1711,85 @@
         "Node name for S&R": "PreviewImage"
       },
       "widgets_values": null,
-      "title": "PREVIEW – REF 4 SKIN CLOSEUP"
+      "title": "PREVIEW – ACTIVE CREATOR REFERENCES"
     },
     {
-      "id": 62,
-      "type": "27eacb9f-0da2-421d-a0bf-b4b4e5fe5709",
+      "id": 65,
+      "type": "MeetMapMultiReferenceConditioning",
       "pos": [
         1010,
-        1080
+        430
       ],
       "size": [
-        240,
-        86
+        390,
+        250
       ],
       "flags": {},
-      "order": 21,
+      "order": 22,
       "mode": 0,
       "inputs": [
         {
-          "label": "positive",
-          "name": "conditioning",
+          "name": "positive",
           "type": "CONDITIONING",
-          "link": 58
+          "link": 42
         },
         {
-          "label": "negative",
-          "name": "conditioning_1",
+          "name": "negative",
           "type": "CONDITIONING",
-          "link": 59
+          "link": 43
         },
         {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 56
+          "name": "references",
+          "type": "MEETMAP_REFERENCE_SET",
+          "link": 44
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 57
+          "link": 45
         }
       ],
       "outputs": [
         {
-          "label": "positive",
-          "name": "CONDITIONING",
+          "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            60
+            47
           ]
         },
         {
-          "label": "negative",
-          "name": "CONDITIONING_1",
+          "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            61
+            48
           ]
+        },
+        {
+          "name": "used_count",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "used_filenames",
+          "type": "STRING",
+          "links": []
         }
       ],
       "properties": {
-        "proxyWidgets": [],
-        "cnr_id": "comfy-core",
-        "ver": "0.8.2",
+        "Node name for S&R": "MeetMapMultiReferenceConditioning",
         "enableTabs": false,
         "tabWidth": 65,
         "tabXOffset": 10,
         "hasSecondTab": false,
         "secondTabText": "Send Back",
         "secondTabOffset": 80,
-        "secondTabWidth": 65,
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
+        "secondTabWidth": 65
       },
-      "widgets_values": [],
-      "title": "REFERENCE 4 – SKIN TEXTURE CONDITIONING"
+      "widgets_values": [
+        12,
+        1
+      ],
+      "title": "FLUX.2 DYNAMIC MULTI-REFERENCE CONDITIONING"
     }
   ],
   "links": [
@@ -2585,54 +1856,6 @@
       42,
       0,
       "CLIP"
-    ],
-    [
-      9,
-      43,
-      0,
-      33,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      10,
-      42,
-      0,
-      33,
-      0,
-      "CONDITIONING"
-    ],
-    [
-      11,
-      33,
-      0,
-      37,
-      0,
-      "CONDITIONING"
-    ],
-    [
-      12,
-      33,
-      1,
-      37,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      13,
-      37,
-      0,
-      41,
-      0,
-      "CONDITIONING"
-    ],
-    [
-      14,
-      37,
-      1,
-      41,
-      1,
-      "CONDITIONING"
     ],
     [
       17,
@@ -2836,159 +2059,55 @@
     ],
     [
       42,
-      30,
+      42,
       0,
-      31,
+      65,
       0,
-      "IMAGE"
+      "CONDITIONING"
     ],
     [
       43,
-      31,
+      43,
       0,
-      32,
-      0,
-      "IMAGE"
+      65,
+      1,
+      "CONDITIONING"
     ],
     [
       44,
-      34,
+      63,
       0,
-      35,
-      0,
-      "IMAGE"
+      65,
+      2,
+      "MEETMAP_REFERENCE_SET"
     ],
     [
       45,
-      35,
+      22,
       0,
-      36,
-      0,
-      "IMAGE"
+      65,
+      3,
+      "VAE"
     ],
     [
       46,
-      38,
-      0,
-      39,
+      63,
+      1,
+      64,
       0,
       "IMAGE"
     ],
     [
       47,
-      39,
-      0,
-      40,
-      0,
-      "IMAGE"
-    ],
-    [
-      48,
-      31,
-      0,
-      33,
-      2,
-      "IMAGE"
-    ],
-    [
-      49,
-      35,
-      0,
-      37,
-      2,
-      "IMAGE"
-    ],
-    [
-      50,
-      39,
-      0,
-      41,
-      2,
-      "IMAGE"
-    ],
-    [
-      51,
-      22,
-      0,
-      33,
-      3,
-      "VAE"
-    ],
-    [
-      52,
-      22,
-      0,
-      37,
-      3,
-      "VAE"
-    ],
-    [
-      53,
-      22,
-      0,
-      41,
-      3,
-      "VAE"
-    ],
-    [
-      54,
-      38,
-      0,
-      39,
-      0,
-      "IMAGE"
-    ],
-    [
-      55,
-      39,
-      0,
-      61,
-      0,
-      "IMAGE"
-    ],
-    [
-      56,
-      39,
-      0,
-      62,
-      2,
-      "IMAGE"
-    ],
-    [
-      57,
-      22,
-      0,
-      62,
-      3,
-      "VAE"
-    ],
-    [
-      58,
-      41,
-      0,
-      62,
-      0,
-      "CONDITIONING"
-    ],
-    [
-      59,
-      41,
-      1,
-      62,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      60,
-      62,
+      65,
       0,
       25,
       1,
       "CONDITIONING"
     ],
     [
-      61,
-      62,
+      48,
+      65,
       1,
       25,
       2,
@@ -3007,22 +2126,22 @@
       "color": "#3f789e"
     },
     {
-      "title": "CREATOR REFERENCES",
+      "title": "DYNAMIC CREATOR REFERENCES",
       "bounding": [
         20,
         350,
-        940,
-        900
+        800,
+        430
       ],
       "color": "#3f9e78"
     },
     {
-      "title": "REFERENCE PREPROCESS + LATENTS",
+      "title": "DYNAMIC MULTI-REFERENCE CONDITIONING",
       "bounding": [
-        980,
-        330,
-        700,
-        930
+        960,
+        350,
+        520,
+        430
       ],
       "color": "#3f9e78"
     },
