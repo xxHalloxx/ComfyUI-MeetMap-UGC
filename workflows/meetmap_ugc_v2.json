@@ -1,6 +1,6 @@
 {
-  "last_node_id": 74,
-  "last_link_id": 63,
+  "last_node_id": 75,
+  "last_link_id": 71,
   "nodes": [
     {
       "id": 1,
@@ -14,9 +14,33 @@
         310
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": 64
+        },
+        {
+          "name": "variation_note",
+          "type": "STRING",
+          "link": 65
+        },
+        {
+          "name": "video_index",
+          "type": "INT",
+          "link": 66
+        },
+        {
+          "name": "total_videos",
+          "type": "INT",
+          "link": 67
+        }
+      ],
       "outputs": [
         {
           "name": "topic",
@@ -92,7 +116,7 @@
         82
       ],
       "flags": {},
-      "order": 5,
+      "order": 6,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -149,7 +173,7 @@
         106
       ],
       "flags": {},
-      "order": 3,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -208,7 +232,7 @@
         58
       ],
       "flags": {},
-      "order": 7,
+      "order": 8,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -264,7 +288,7 @@
         58
       ],
       "flags": {},
-      "order": 1,
+      "order": 2,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -312,7 +336,7 @@
         106
       ],
       "flags": {},
-      "order": 22,
+      "order": 23,
       "mode": 0,
       "inputs": [
         {
@@ -381,7 +405,7 @@
         98
       ],
       "flags": {},
-      "order": 25,
+      "order": 26,
       "mode": 0,
       "inputs": [
         {
@@ -445,7 +469,7 @@
         106
       ],
       "flags": {},
-      "order": 26,
+      "order": 27,
       "mode": 0,
       "inputs": [
         {
@@ -520,9 +544,18 @@
         82
       ],
       "flags": {},
-      "order": 2,
+      "order": 3,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "noise_seed",
+          "type": "INT",
+          "widget": {
+            "name": "noise_seed"
+          },
+          "link": 68
+        }
+      ],
       "outputs": [
         {
           "name": "NOISE",
@@ -569,7 +602,7 @@
         106
       ],
       "flags": {},
-      "order": 11,
+      "order": 12,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -621,7 +654,7 @@
         46
       ],
       "flags": {},
-      "order": 27,
+      "order": 28,
       "mode": 0,
       "inputs": [
         {
@@ -680,7 +713,7 @@
         333.33333333333337
       ],
       "flags": {},
-      "order": 12,
+      "order": 13,
       "mode": 0,
       "inputs": [
         {
@@ -746,7 +779,7 @@
         26
       ],
       "flags": {},
-      "order": 18,
+      "order": 19,
       "mode": 0,
       "inputs": [
         {
@@ -796,7 +829,7 @@
         90
       ],
       "flags": {},
-      "order": 7,
+      "order": 8,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -836,7 +869,7 @@
         180
       ],
       "flags": {},
-      "order": 10,
+      "order": 11,
       "mode": 0,
       "inputs": [
         {
@@ -879,7 +912,7 @@
         100
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
@@ -913,7 +946,7 @@
         100
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
@@ -949,7 +982,7 @@
         100
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
@@ -983,7 +1016,7 @@
         100
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
@@ -1019,7 +1052,7 @@
         100
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
@@ -1070,7 +1103,7 @@
         670
       ],
       "flags": {},
-      "order": 12,
+      "order": 13,
       "mode": 0,
       "inputs": [
         {
@@ -1123,6 +1156,14 @@
             "name": "value_4"
           },
           "link": null
+        },
+        {
+          "name": "noise_seed",
+          "type": "INT",
+          "widget": {
+            "name": "noise_seed"
+          },
+          "link": 70
         },
         {
           "label": "frame_rate",
@@ -1215,13 +1256,21 @@
       "flags": {
         "collapsed": false
       },
-      "order": 13,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
           "name": "video",
           "type": "VIDEO",
           "link": 41
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": 71
         }
       ],
       "outputs": [
@@ -1267,7 +1316,7 @@
         170
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1320,7 +1369,7 @@
         120
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
@@ -1354,7 +1403,7 @@
         120
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
@@ -1390,7 +1439,7 @@
         190
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
@@ -1461,7 +1510,7 @@
         120
       ],
       "flags": {},
-      "order": 30,
+      "order": 31,
       "mode": 0,
       "inputs": [
         {
@@ -1520,7 +1569,7 @@
         70
       ],
       "flags": {},
-      "order": 31,
+      "order": 32,
       "mode": 0,
       "inputs": [
         {
@@ -1570,7 +1619,7 @@
         500
       ],
       "flags": {},
-      "order": 32,
+      "order": 33,
       "mode": 0,
       "inputs": [
         {
@@ -1673,7 +1722,7 @@
         560
       ],
       "flags": {},
-      "order": 33,
+      "order": 34,
       "mode": 0,
       "inputs": [
         {
@@ -1689,6 +1738,14 @@
           "name": "image",
           "type": "IMAGE",
           "link": 57
+        },
+        {
+          "name": "noise_seed",
+          "type": "INT",
+          "widget": {
+            "name": "noise_seed"
+          },
+          "link": 69
         }
       ],
       "outputs": [
@@ -1749,7 +1806,7 @@
         90
       ],
       "flags": {},
-      "order": 34,
+      "order": 35,
       "mode": 0,
       "inputs": [
         {
@@ -1807,7 +1864,7 @@
         220
       ],
       "flags": {},
-      "order": 35,
+      "order": 36,
       "mode": 0,
       "inputs": [
         {
@@ -1843,7 +1900,7 @@
         360
       ],
       "flags": {},
-      "order": 36,
+      "order": 37,
       "mode": 0,
       "inputs": [
         {
@@ -1879,7 +1936,7 @@
         360
       ],
       "flags": {},
-      "order": 37,
+      "order": 38,
       "mode": 0,
       "inputs": [
         {
@@ -1915,7 +1972,7 @@
         470
       ],
       "flags": {},
-      "order": 38,
+      "order": 39,
       "mode": 0,
       "inputs": [
         {
@@ -1951,7 +2008,7 @@
         150
       ],
       "flags": {},
-      "order": 39,
+      "order": 40,
       "mode": 0,
       "inputs": [
         {
@@ -1976,6 +2033,96 @@
         "meetmap_debug/face_realism_stitched"
       ],
       "title": "DEBUG – FACE REALISM STITCHED"
+    },
+    {
+      "id": 75,
+      "type": "MeetMapVideoBatchPlanner",
+      "pos": [
+        -520,
+        80
+      ],
+      "size": [
+        400,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "variation_note",
+          "type": "STRING",
+          "links": [
+            65
+          ]
+        },
+        {
+          "name": "video_index",
+          "type": "INT",
+          "links": [
+            66
+          ]
+        },
+        {
+          "name": "total_videos",
+          "type": "INT",
+          "links": [
+            67
+          ]
+        },
+        {
+          "name": "content_seed",
+          "type": "INT",
+          "links": [
+            64
+          ]
+        },
+        {
+          "name": "flux_seed",
+          "type": "INT",
+          "links": [
+            68
+          ]
+        },
+        {
+          "name": "face_seed",
+          "type": "INT",
+          "links": [
+            69
+          ]
+        },
+        {
+          "name": "ltx_seed",
+          "type": "INT",
+          "links": [
+            70
+          ]
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "links": [
+            71
+          ]
+        },
+        {
+          "name": "progress",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MeetMapVideoBatchPlanner"
+      },
+      "widgets_values": [
+        1,
+        42,
+        "increment",
+        true,
+        "video/meetmap_ugc_v2"
+      ],
+      "title": "BATCH CONTROL – FULL PIPELINE × N VIDEOS"
     }
   ],
   "links": [
@@ -2338,9 +2485,86 @@
       49,
       0,
       "IMAGE"
+    ],
+    [
+      64,
+      75,
+      3,
+      1,
+      0,
+      "INT"
+    ],
+    [
+      65,
+      75,
+      0,
+      1,
+      1,
+      "STRING"
+    ],
+    [
+      66,
+      75,
+      1,
+      1,
+      2,
+      "INT"
+    ],
+    [
+      67,
+      75,
+      2,
+      1,
+      3,
+      "INT"
+    ],
+    [
+      68,
+      75,
+      4,
+      27,
+      0,
+      "INT"
+    ],
+    [
+      69,
+      75,
+      5,
+      68,
+      2,
+      "INT"
+    ],
+    [
+      70,
+      75,
+      6,
+      57,
+      6,
+      "INT"
+    ],
+    [
+      71,
+      75,
+      7,
+      58,
+      1,
+      "STRING"
     ]
   ],
   "groups": [
+    {
+      "id": 9001,
+      "title": "BATCH / MULTI-VIDEO CONTROL",
+      "bounding": [
+        -560,
+        20,
+        500,
+        400
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
     {
       "title": "MEETMAP CONTENT AI",
       "bounding": [
@@ -2440,6 +2664,26 @@
     "linearData": {
       "inputs": [
         [
+          "meetmap-ugc-v2-flux-reference-ltx:75:video_count",
+          "Video count"
+        ],
+        [
+          "meetmap-ugc-v2-flux-reference-ltx:75:base_seed",
+          "Base seed"
+        ],
+        [
+          "meetmap-ugc-v2-flux-reference-ltx:75:seed_mode",
+          "Seed mode"
+        ],
+        [
+          "meetmap-ugc-v2-flux-reference-ltx:75:save_run_folder",
+          "Save run folder"
+        ],
+        [
+          "meetmap-ugc-v2-flux-reference-ltx:75:filename_root",
+          "Advanced · Output root"
+        ],
+        [
           "meetmap-ugc-v2-flux-reference-ltx:1:optional_topic",
           "Topic (AUTO or custom)"
         ],
@@ -2510,6 +2754,14 @@
       ],
       "outputs": [
         [
+          "meetmap-ugc-v2-flux-reference-ltx:75:progress",
+          "Batch · Progress"
+        ],
+        [
+          "meetmap-ugc-v2-flux-reference-ltx:75:filename_prefix",
+          "Batch · Output filename"
+        ],
+        [
           "meetmap-ugc-v2-flux-reference-ltx:1:topic",
           "AI · Generated topic"
         ],
@@ -2577,7 +2829,7 @@
     },
     "app": {
       "name": "MeetMap UGC Generator",
-      "description": "Reference-conditioned FLUX.2 UGC generation with Reddit-style YOLO face detection, Crop & Stitch, FLUX.2 face realism refinement, and LTX 2.5 video."
+      "description": "Generate 1–10 distinct MeetMap UGC videos in one run. Each batch item regenerates the AI concept, script, prompts, FLUX.2 startframe, face realism pass and LTX 2.5 video with independent seeds."
     }
   },
   "version": 0.4,
