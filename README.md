@@ -29,10 +29,11 @@ Use a normal ComfyUI RunPod image/template. No MeetMap-specific Docker image is 
 Run this from **any directory inside the RunPod terminal**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/bootstrap_runpod.sh | bash
+test -n "${HF_TOKEN:-}" || { echo "HF_TOKEN fehlt"; exit 1; }; \
+curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/bootstrap_runpod.sh | env -u PIP_CONSTRAINT HF_TOKEN="${HF_TOKEN}" bash
 ```
 
-The bootstrap script automatically searches common RunPod/ComfyUI locations (including `/workspace/runpod-slim` layouts), finds the real ComfyUI directory, clones/updates this repository inside its `custom_nodes` folder, and then runs `install_runpod.sh`.
+The bootstrap script automatically searches common RunPod/ComfyUI locations (including `/workspace/runpod-slim` layouts), finds the real ComfyUI directory, clones/updates this repository inside its `custom_nodes` folder, and then runs `install_runpod.sh`. It now performs full Pod provisioning first: it requires `HF_TOKEN`, neutralizes RunPod's leaked pip constraint, skips the optional SAM2 dependency that can conflict with CUDA torch pins, downloads every model used by the final workflow onto the Pod, and verifies all model files before reporting success.
 
 If auto-detection fails, it prints a diagnostic command instead of guessing a path.
 
