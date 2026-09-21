@@ -1,7 +1,9 @@
 import gc
 import json
+import math
 import os
 import re
+from pathlib import Path
 from typing import Any, Dict
 
 import folder_paths
@@ -19,6 +21,7 @@ REQUIRED_FIELDS = (
     "video_prompt",
     "duration_seconds",
 )
+BEAT_FIELDS = ("start", "end", "expression", "movement")
 
 
 SYSTEM_PROMPT = r"""
@@ -36,24 +39,26 @@ Antworte ausschließlich mit genau einem JSON-Objekt und exakt diesen Feldern:
   "spoken_script_de": "...",
   "image_prompt": "...",
   "video_prompt": "...",
-  "duration_seconds": 12
+  "duration_seconds": 12,
+  "acting_beats": [
+    {"start": 0.0, "end": 4.0, "expression": "relaxed and friendly", "movement": "small blink and minimal head movement"},
+    {"start": 4.0, "end": 8.0, "expression": "slightly more animated", "movement": "tiny eyebrow raise and one restrained hand gesture"},
+    {"start": 8.0, "end": 12.0, "expression": "calm and friendly", "movement": "small head tilt and steady eye contact"}
+  ]
 }
 
 Regeln:
 - spoken_script_de ist vollständig Deutsch, natürliche junge Alltagssprache, 22 bis 35 Wörter, genau ein Hauptgedanke, kein Werbesprecher, keine Marketing-Floskel und kein künstlicher CTA.
 - duration_seconds ist eine ganze Zahl zwischen 10 und 15. Bei gültigem duration_override hat dieser Wert Vorrang; sonst anhand der Sprechlänge bestimmen.
-- image_prompt ist Englisch und beschreibt exakt eine junge erwachsene Person zuhause im Schlafzimmer oder Wohnzimmer, sitzend auf Bett, Sofa oder Stuhl, Smartphone-Frontkamera auf Augenhöhe, direkter Blick in die Kamera, Alltagskleidung, glaubwürdige leicht unperfekte Wohnung und natürliche Raumbeleuchtung. Sichtbare feine Poren, Haut-Mikrotextur, kleine Unreinheiten, feine Gesichtshaare, natürliche Lippen, realistische Augen und Augenbrauen, leichte Gesichtsasymmetrie, dezentes Sensorrauschen, unpoliertes Smartphone-Foto, realistische Belichtung und Stofftextur. Kein Studio, Commercial, Fashion Shoot, Stockfoto, CGI, 3D-Render, Beauty-Filter, Airbrush, Plastik- oder Wachshaut und keine perfekte Symmetrie.
+- image_prompt ist Englisch und beschreibt standardmäßig eine junge erwachsene Frau zuhause im Schlafzimmer oder Wohnzimmer, sitzend auf Bett, Sofa oder Stuhl, Smartphone-Frontkamera auf Augenhöhe, direkter Blick in die Kamera, Alltagskleidung, glaubwürdige leicht unperfekte Wohnung und natürliche Raumbeleuchtung. Sichtbare feine Poren, Haut-Mikrotextur, kleine Unreinheiten, feine Gesichtshaare, natürliche Lippen, realistische Augen und Augenbrauen, leichte Gesichtsasymmetrie, dezentes Sensorrauschen, unpoliertes Smartphone-Foto, realistische Belichtung und Stofftextur. Kein Studio, Commercial, Fashion Shoot, Stockfoto, CGI, 3D-Render, Beauty-Filter, Airbrush, Plastik- oder Wachshaut und keine perfekte Symmetrie.
 - video_prompt ist Englisch und zeigt dieselbe Person, Kleidung, Frisur, Beleuchtung und denselben Raum. Realistisches vertikales Smartphone-UGC, direkte Ansprache, natürliche Mikro-Bewegungen, stabile Identität und stabiler Hintergrund. Keine Kamerafahrt, kein dramatischer Zoom, kein Morphing und keine übertriebene Gestik.
 - image_prompt und video_prompt müssen dieselbe Person und Situation beschreiben.
+- acting_beats enthält 3 oder höchstens 4 zeitlich lückenlose Beats, die bei 0.0 beginnen und exakt bei duration_seconds enden. Keine Überschneidungen und keine dramatischen Bewegungen.
 """.strip()
 
 
-def _llm_dir() -> str:
-    return os.path.abspath(os.path.join(folder_paths.models_dir, "LLM"))
-
-
 def _available_models():
-    model_dir = _llm_dir()
+    model_dir = os.path.join(folder_paths.models_dir, "LLM")
     try:
         names = sorted(
             name
@@ -67,34 +72,31 @@ def _available_models():
     return names
 
 
-def _safe_model_path(model_name: str) -> str:
-    model_dir = _llm_dir()
-    model_path = os.path.abspath(os.path.join(model_dir, model_name))
-    if os.path.commonpath([model_dir, model_path]) != model_dir:
-        raise ValueError("model_name must resolve inside ComfyUI/models/LLM/.")
-    return model_path
+def _llm_dir() -> Path:
+    return Path(folder_paths.models_dir) / "LLM"
 
 
-def _ensure_default_model(model_name: str) -> str:
-    model_path = _safe_model_path(model_name)
-    if os.path.isfile(model_path) and os.path.getsize(model_path) > 0:
-        return model_path
-
+def _ensure_default_model(model_name: str) -> Path:
+    """Download only the documented default GGUF when it is absent locally."""
+    target_dir = _llm_dir()
+    target = target_dir / model_name
+    if target.is_file():
+        return target
     if model_name != DEFAULT_MODEL:
-        raise FileNotFoundError(f"GGUF model not found: {model_path}")
+        raise FileNotFoundError(f"Selected GGUF model not found: {target}")
 
-    os.makedirs(_llm_dir(), exist_ok=True)
-    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
-    print(f"[MeetMap UGC] Downloading missing Qwen model: {DEFAULT_MODEL}")
-    hf_hub_download(
-        repo_id=DEFAULT_MODEL_REPO,
-        filename=DEFAULT_MODEL,
-        local_dir=_llm_dir(),
+    target_dir.mkdir(parents=True, exist_ok=True)
+    print(f"[MeetMap UGC] Downloading missing Qwen GGUF to {target}")
+    downloaded = Path(
+        hf_hub_download(
+            repo_id=DEFAULT_MODEL_REPO,
+            filename=DEFAULT_MODEL,
+            local_dir=str(target_dir),
+        )
     )
-
-    if not os.path.isfile(model_path) or os.path.getsize(model_path) <= 0:
-        raise FileNotFoundError(f"Qwen download finished but expected file is missing: {model_path}")
-    return model_path
+    if not downloaded.is_file():
+        raise RuntimeError(f"Qwen download did not create the expected file: {downloaded}")
+    return downloaded
 
 
 def _extract_json_object(text: str) -> Dict[str, Any]:
@@ -116,6 +118,36 @@ def _parse_override(value: str):
     except (TypeError, ValueError):
         return None
     return number if 10 <= number <= 15 else None
+
+
+def _validate_acting_beats(value: Any, duration: int) -> str:
+    if isinstance(value, str):
+        value = json.loads(value)
+    if not isinstance(value, list) or not 1 <= len(value) <= 4:
+        raise ValueError("acting_beats must contain one to four beats.")
+    beats = []
+    for beat in value:
+        if not isinstance(beat, dict) or any(field not in beat for field in BEAT_FIELDS):
+            raise ValueError("Every acting beat needs start, end, expression and movement.")
+        try:
+            start = float(beat["start"])
+            end = float(beat["end"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Acting beat times must be numeric.") from exc
+        if not isinstance(beat["expression"], str) or not isinstance(beat["movement"], str):
+            raise ValueError("Acting beat expression and movement must be strings.")
+        beats.append({"start": start, "end": end, "expression": beat["expression"].strip(), "movement": beat["movement"].strip()})
+    beats.sort(key=lambda item: item["start"])
+    tolerance = 0.06
+    if abs(beats[0]["start"]) > tolerance or abs(beats[-1]["end"] - duration) > tolerance:
+        raise ValueError("Acting beats must cover the complete duration.")
+    beats[0]["start"] = 0.0
+    beats[-1]["end"] = float(duration)
+    for previous, current in zip(beats, beats[1:]):
+        if abs(previous["end"] - current["start"]) > tolerance or current["start"] < previous["end"] - tolerance:
+            raise ValueError("Acting beats must be contiguous and non-overlapping.")
+        current["start"] = previous["end"]
+    return json.dumps(beats, ensure_ascii=False, separators=(",", ":"))
 
 
 def _validate_payload(payload: Dict[str, Any], duration_override: str) -> Dict[str, Any]:
@@ -140,8 +172,8 @@ def _validate_payload(payload: Dict[str, Any], duration_override: str) -> Dict[s
             words = len(re.findall(r"\b\w+[\w'-]*\b", normalized["spoken_script_de"], flags=re.UNICODE))
             duration = int(round(words / 2.35 + 0.8))
         duration = max(10, min(15, duration))
-
     normalized["duration_seconds"] = duration
+    normalized["acting_beats"] = _validate_acting_beats(payload.get("acting_beats"), duration)
     return normalized
 
 
@@ -168,8 +200,8 @@ class MeetMapContentGenerator:
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING", "INT")
-    RETURN_NAMES = ("topic", "hook", "spoken_script_de", "image_prompt", "video_prompt", "duration_seconds")
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING", "INT", "STRING")
+    RETURN_NAMES = ("topic", "hook", "spoken_script_de", "image_prompt", "video_prompt", "duration_seconds", "acting_beats")
     FUNCTION = "generate"
     CATEGORY = "MeetMap/UGC"
     DESCRIPTION = "Runs one local CPU-only Qwen GGUF inference and returns validated MeetMap UGC fields."
@@ -188,7 +220,11 @@ class MeetMapContentGenerator:
         content_style,
         seed,
     ):
-        model_path = _ensure_default_model(str(model_name))
+        model_path = os.path.abspath(os.path.join(folder_paths.models_dir, "LLM", model_name))
+        allowed_root = os.path.abspath(os.path.join(folder_paths.models_dir, "LLM")) + os.sep
+        if not model_path.startswith(allowed_root):
+            raise ValueError("model_name must resolve inside ComfyUI/models/LLM/.")
+        model_path = str(_ensure_default_model(model_name))
 
         user_prompt = (
             "Erzeuge jetzt genau ein Konzept mit diesen Eingaben:\n"
@@ -213,20 +249,15 @@ class MeetMapContentGenerator:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ]
-
             parse_error = None
             for attempt in range(2):
                 if attempt == 1:
                     messages.append(
                         {
                             "role": "user",
-                            "content": (
-                                "Die vorige Antwort war technisch nicht als vollständiges Pflichtfeld-JSON parsebar. "
-                                "Gib jetzt ausschließlich das geforderte vollständige JSON-Objekt aus."
-                            ),
+                            "content": "Die vorige Antwort war technisch nicht als vollständiges Pflichtfeld-JSON parsebar. Gib jetzt ausschließlich das geforderte vollständige JSON-Objekt aus.",
                         }
                     )
-
                 response = llama.create_chat_completion(
                     messages=messages,
                     temperature=0.85 if attempt == 0 else 0.2,
@@ -235,13 +266,11 @@ class MeetMapContentGenerator:
                     seed=int(seed) + attempt,
                 )
                 text = response["choices"][0]["message"]["content"]
-
                 try:
                     payload = _validate_payload(_extract_json_object(text), duration_override)
-                    return tuple(payload[key] for key in REQUIRED_FIELDS)
+                    return tuple(payload[key] for key in REQUIRED_FIELDS) + (payload["acting_beats"],)
                 except (ValueError, TypeError, KeyError) as exc:
                     parse_error = exc
-
             raise ValueError(f"Qwen returned invalid MeetMap JSON after one retry: {parse_error}")
         finally:
             if llama is not None:
@@ -268,29 +297,76 @@ class MeetMapLTXPromptBuilder:
     CATEGORY = "MeetMap/UGC"
 
     def build(self, video_prompt, spoken_script_de):
-        spoken = str(spoken_script_de).strip()
-        quoted_spoken = json.dumps(spoken, ensure_ascii=False)
-        prompt = f"""{str(video_prompt).strip()}
+        spoken = str(spoken_script_de).strip().replace('"', '\\"')
+        prompt = f'''{str(video_prompt).strip()}
 
 This is a realistic vertical smartphone UGC recording. The person looks directly into the smartphone camera and speaks German naturally in a casual young voice.
 
 The person says exactly:
-{quoted_spoken}
+"{spoken}"
 
 The quoted German sentence must be spoken exactly as written. Do not translate it, rewrite it, add words, or omit words.
 
 Natural synchronized speech and mouth motion. Subtle blinking, breathing, small head movements, small shoulder movements and occasional restrained natural hand gestures. Preserve the exact facial identity, hairstyle, clothing, body proportions, lighting and room throughout the clip. Natural skin texture remains visible. Stable smartphone UGC framing.
 
-No cinematic camera movement. No dramatic zoom. No morphing. No identity drift. No face changes. No clothing changes. No background changes. No exaggerated gestures. No beauty-filter appearance."""
+No cinematic camera movement. No dramatic zoom. No morphing. No identity drift. No face changes. No clothing changes. No background changes. No exaggerated gestures. No beauty-filter appearance.'''
+        return (prompt,)
+
+
+class MeetMapLTXRelayPromptBuilder:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_prompt": ("STRING", {"multiline": True, "forceInput": True}),
+                "spoken_script_de": ("STRING", {"multiline": True, "forceInput": True}),
+                "acting_beats": ("STRING", {"multiline": True, "forceInput": True}),
+                "duration_seconds": ("INT", {"forceInput": True, "min": 10, "max": 15}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "build"
+    CATEGORY = "MeetMap/UGC"
+
+    def build(self, video_prompt, spoken_script_de, acting_beats, duration_seconds):
+        spoken = str(spoken_script_de).strip().replace('"', '\\"')
+        try:
+            beats = json.loads(acting_beats)
+        except (TypeError, json.JSONDecodeError):
+            beats = []
+        lines = []
+        for beat in beats:
+            lines.append(
+                f"[{float(beat['start']):.1f}s-{float(beat['end']):.1f}s]\n"
+                f"Expression: {beat['expression']}. Movement: {beat['movement']}."
+            )
+        relay = "\n\n".join(lines) or "[0.0s-{:.1f}s]\nRelaxed direct eye contact, subtle blinking and minimal natural head movement.".format(float(duration_seconds))
+        prompt = f'''{str(video_prompt).strip()}
+
+This is a realistic vertical smartphone selfie video, not a cinematic commercial. Use a front camera, casual phone stabilization, slight handheld micro movement, minor autofocus breathing and minor exposure variation. Keep the framing natural and the background stable.
+
+The person says exactly:
+"{spoken}"
+
+The quoted German sentence must be spoken exactly as written. Do not translate, rewrite, add words, or omit words. Use natural German speech, synchronized mouth motion and normal conversational pacing.
+
+ACTING RELAY FOR THE COMPLETE {int(duration_seconds)} SECOND CLIP:
+{relay}
+
+Maintain direct eye contact most of the time, natural blinking, subtle breathing, restrained shoulder movement and at most one small hand gesture per beat. Preserve stable identity, skin texture, hair, clothing and room. No morphing, identity drift, face changes, clothing changes, background changes, exaggerated gestures, orbit, dolly, dramatic zoom or cinematic camera movement.'''
         return (prompt,)
 
 
 NODE_CLASS_MAPPINGS = {
     "MeetMapContentGenerator": MeetMapContentGenerator,
     "MeetMapLTXPromptBuilder": MeetMapLTXPromptBuilder,
+    "MeetMapLTXRelayPromptBuilder": MeetMapLTXRelayPromptBuilder,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "MeetMapContentGenerator": "MeetMap Content Generator",
     "MeetMapLTXPromptBuilder": "MeetMap LTX Prompt Builder",
+    "MeetMapLTXRelayPromptBuilder": "MeetMap LTX Relay Prompt Builder",
 }

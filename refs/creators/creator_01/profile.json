@@ -1,0 +1,13 @@
+{
+  "id": "creator_01",
+  "presentation": "female",
+  "age_range": "18-24",
+  "default_environment": "bedroom",
+  "camera": "smartphone front camera",
+  "framing": "head and upper torso selfie",
+  "identity_refs": [
+    "face_front.png",
+    "face_angle.png",
+    "upper_body.png"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "default_creator": "creator_01",
+  "creators": {
+    "creator_01": {
+      "identity_refs": [
+        "refs/creators/creator_01/face_front.png",
+        "refs/creators/creator_01/face_angle.png",
+        "refs/creators/creator_01/upper_body.png"
+      ]
+    }
+  },
+  "style_refs": [
+    "refs/style/style_01.png",
+    "refs/style/style_02.png",
+    "refs/style/style_03.png",
+    "refs/style/style_04.png",
+    "refs/style/style_05.png"
+  ],
+  "runtime_input_root": "ComfyUI/input/meetmap_refs"
+}
