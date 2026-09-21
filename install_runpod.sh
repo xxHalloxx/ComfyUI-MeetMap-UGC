@@ -136,6 +136,65 @@ else
   echo "[MeetMap UGC] Face detector already present."
 fi
 
+# Gated LTX 2.5 files: ComfyUI may show these with orange lock icons.
+# If HF_TOKEN is available, download them directly so the workflow does not
+# depend on the frontend downloader being authenticated.
+if [[ -n "${HF_TOKEN:-}" ]]; then
+  echo "[MeetMap UGC] HF_TOKEN detected. Ensuring gated LTX 2.5 models are installed..."
+  PYTHONPATH="${COMFYUI_DIR}${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" - "${COMFYUI_DIR}" <<'PY'
+import os
+import sys
+from huggingface_hub import hf_hub_download
+
+comfyui_dir = os.path.abspath(sys.argv[1])
+models_dir = os.path.join(comfyui_dir, "models")
+token = os.environ.get("HF_TOKEN")
+
+required = [
+    ("diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+     os.path.join(models_dir, "diffusion_models", "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors")),
+    ("vae/ltx-2.5-video-vae-bf16.safetensors",
+     os.path.join(models_dir, "vae", "ltx-2.5-video-vae-bf16.safetensors")),
+    ("vae/ltx-2.5-audio-vae-bf16.safetensors",
+     os.path.join(models_dir, "vae", "ltx-2.5-audio-vae-bf16.safetensors")),
+    ("text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+     os.path.join(models_dir, "text_encoders", "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors")),
+    ("latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
+     os.path.join(models_dir, "latent_upscale_models", "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors")),
+]
+
+for repo_path, expected in required:
+    if os.path.isfile(expected) and os.path.getsize(expected) > 0:
+        print(f"[MeetMap UGC] Already present: {expected}")
+        continue
+
+    print(f"[MeetMap UGC] Downloading gated LTX model: {repo_path}")
+    os.makedirs(os.path.dirname(expected), exist_ok=True)
+    try:
+        downloaded = hf_hub_download(
+            repo_id="Lightricks/LTX-2.5",
+            filename=repo_path,
+            local_dir=models_dir,
+            token=token,
+        )
+    except Exception as exc:
+        raise SystemExit(
+            "\n[MeetMap UGC] LTX 2.5 download failed. "
+            "Make sure HF_TOKEN belongs to the Hugging Face account that accepted "
+            "the Lightricks/LTX-2.5 license/access agreement.\n"
+            f"Failed file: {repo_path}\nError: {exc}"
+        )
+
+    if not os.path.isfile(expected) or os.path.getsize(expected) <= 0:
+        raise SystemExit(
+            f"[MeetMap UGC] Download returned {downloaded!r}, but expected file is missing: {expected}"
+        )
+PY
+else
+  echo "[MeetMap UGC] HF_TOKEN is not set."
+  echo "[MeetMap UGC] Gated LTX 2.5 models may appear locked in ComfyUI until HF_TOKEN is added to the RunPod environment."
+fi
+
 # Put the final workflow into the normal recent-ComfyUI user workflow folder.
 # This is best-effort; the source always remains in this repository as well.
 if [[ -f "${WORKFLOW_SRC}" ]]; then
