@@ -98,8 +98,24 @@ PY
 
   if [[ -d "$meetmap_dir/refs" ]]; then
     mkdir -p "$input_dir"
-    cp -R "$meetmap_dir/refs/creators" "$input_dir/"
-    [[ ! -d "$meetmap_dir/refs/style" ]] || cp -R "$meetmap_dir/refs/style" "$input_dir/"
+
+    # Runtime paths intentionally omit the repository-only "creators/" level:
+    # refs/creators/creator_01 -> ComfyUI/input/meetmap_refs/creator_01
+    # This matches MeetMapReferenceFolderLoader's default path.
+    if [[ -d "$meetmap_dir/refs/creators" ]]; then
+      local creator_dir creator_name
+      for creator_dir in "$meetmap_dir"/refs/creators/*; do
+        [[ -d "$creator_dir" ]] || continue
+        creator_name="$(basename "$creator_dir")"
+        mkdir -p "$input_dir/$creator_name"
+        cp -a "$creator_dir/." "$input_dir/$creator_name/"
+      done
+    fi
+
+    if [[ -d "$meetmap_dir/refs/style" ]]; then
+      mkdir -p "$input_dir/style"
+      cp -a "$meetmap_dir/refs/style/." "$input_dir/style/"
+    fi
   fi
 
   "$python_bin" - "$models_dir" <<'PY'
