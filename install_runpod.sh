@@ -139,6 +139,35 @@ fi
 # Gated LTX 2.5 files: ComfyUI may show these with orange lock icons.
 # If HF_TOKEN is available, download them directly so the workflow does not
 # depend on the frontend downloader being authenticated.
+# Download the MeetMap Qwen GGUF during setup as well, so a fresh Pod
+# is fully provisioned before the first Queue run.
+QWEN_MODEL="${COMFYUI_DIR}/models/LLM/Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
+if [[ ! -s "${QWEN_MODEL}" ]]; then
+  echo "[MeetMap UGC] Downloading Qwen GGUF to Pod..."
+  "${PYTHON_BIN}" - "${COMFYUI_DIR}/models/LLM" <<'PY'
+import os
+import sys
+from huggingface_hub import hf_hub_download
+
+target_dir = os.path.abspath(sys.argv[1])
+os.makedirs(target_dir, exist_ok=True)
+expected = os.path.join(target_dir, "Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf")
+
+downloaded = hf_hub_download(
+    repo_id="bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF",
+    filename="Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf",
+    local_dir=target_dir,
+)
+
+if not os.path.isfile(expected) or os.path.getsize(expected) <= 0:
+    raise SystemExit(
+        f"[MeetMap UGC] Qwen download returned {downloaded!r}, but expected file is missing: {expected}"
+    )
+PY
+else
+  echo "[MeetMap UGC] Qwen GGUF already present."
+fi
+
 # Public workflow models are installed directly as well. This removes the
 # need to use ComfyUI's manual "Download to Pod" model picker.
 echo "[MeetMap UGC] Ensuring public workflow models are installed..."
@@ -258,5 +287,5 @@ echo
 echo "[MeetMap UGC] Installation complete."
 echo "[MeetMap UGC] Restart ComfyUI if it is already running."
 echo "[MeetMap UGC] Open meetmap_ugc_realistic_runpod.json."
-echo "[MeetMap UGC] Qwen downloads automatically on the first Queue run if missing."
+echo "[MeetMap UGC] Qwen and all workflow models are provisioned onto the Pod during setup when possible."
 echo "[MeetMap UGC] Juggernaut, face detector, prompt enhancer and LTX models are installed directly when possible."
