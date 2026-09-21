@@ -35,16 +35,24 @@ find_python() {
 ensure_repo() {
   local url="$1" destination="$2" ref="${3:-}"
   if [[ -d "$destination/.git" ]]; then
-    git -C "$destination" fetch --depth 1 origin
+    if [[ -n "$ref" ]]; then
+      git -C "$destination" fetch --depth 1 origin "$ref"
+      git -C "$destination" checkout --detach FETCH_HEAD
+    else
+      # MeetMap follows the repository default branch. Reset to the freshly
+      # fetched remote HEAD so rerunning bootstrap cannot silently keep stale code.
+      git -C "$destination" fetch --depth 1 origin main
+      git -C "$destination" checkout -B main FETCH_HEAD
+    fi
   elif [[ ! -e "$destination" ]]; then
     git clone --depth 1 "$url" "$destination"
+    if [[ -n "$ref" ]]; then
+      git -C "$destination" fetch --depth 1 origin "$ref"
+      git -C "$destination" checkout --detach FETCH_HEAD
+    fi
   elif [[ ! -f "$destination/__init__.py" ]]; then
     echo "Existing path is not a usable custom-node repository: $destination" >&2
     return 1
-  fi
-  if [[ -n "$ref" && -d "$destination/.git" ]]; then
-    git -C "$destination" fetch --depth 1 origin "$ref"
-    git -C "$destination" checkout --detach "$ref"
   fi
 }
 
