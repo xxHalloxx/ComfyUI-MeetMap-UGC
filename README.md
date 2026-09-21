@@ -16,7 +16,7 @@ curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/
   | env -u PIP_CONSTRAINT HF_TOKEN="${HF_TOKEN}" bash
 ```
 
-The bootstrap copies committed references into `ComfyUI/input/meetmap_refs/`, downloads all v2 models idempotently, verifies every file, and installs `workflows/meetmap_ugc_v2.json`. Restart ComfyUI before importing it.
+The bootstrap copies four committed creator references plus the nine style references into `ComfyUI/input/meetmap_refs/`, downloads all v2 models idempotently, verifies every file, and installs `workflows/meetmap_ugc_v2.json`. Restart ComfyUI before importing it.
 
 The v1 workflow remains available as `workflows/meetmap_ugc_realistic_runpod.json`.
 

@@ -1,6 +1,6 @@
 {
-  "last_node_id": 58,
-  "last_link_id": 53,
+  "last_node_id": 62,
+  "last_link_id": 61,
   "nodes": [
     {
       "id": 1,
@@ -219,7 +219,8 @@
             24,
             51,
             52,
-            53
+            53,
+            57
           ]
         }
       ],
@@ -394,12 +395,12 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 15
+          "link": 60
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 16
+          "link": 61
         }
       ],
       "outputs": [
@@ -1139,7 +1140,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            46
+            46,
+            54
           ]
         },
         {
@@ -1193,7 +1195,7 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 46
+          "link": 54
         }
       ],
       "outputs": [
@@ -1202,7 +1204,9 @@
           "type": "IMAGE",
           "links": [
             47,
-            50
+            50,
+            55,
+            56
           ]
         }
       ],
@@ -1312,7 +1316,7 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            15
+            58
           ]
         },
         {
@@ -1320,7 +1324,7 @@
           "name": "CONDITIONING_1",
           "type": "CONDITIONING",
           "links": [
-            16
+            59
           ]
         }
       ],
@@ -2296,6 +2300,225 @@
         "auto"
       ],
       "title": "OUTPUT – MEETMAP UGC V2 VIDEO"
+    },
+    {
+      "id": 59,
+      "type": "LoadImage",
+      "pos": [
+        40,
+        1080
+      ],
+      "size": [
+        310.82613643273794,
+        390.32181829238084
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2",
+        "Node name for S&R": "LoadImage",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "image": true,
+            "upload": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "meetmap_refs/creator_01/skin_closeup.png",
+        "image"
+      ],
+      "title": "REFERENCE 4 – SKIN CLOSEUP"
+    },
+    {
+      "id": 60,
+      "type": "ImageScaleToTotalPixels",
+      "pos": [
+        390,
+        1080
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2",
+        "Node name for S&R": "ImageScaleToTotalPixels",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "upscale_method": true,
+            "megapixels": true,
+            "resolution_steps": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "nearest-exact",
+        1,
+        1
+      ],
+      "title": "REFERENCE 4 – SKIN CLOSEUP PROCESSED"
+    },
+    {
+      "id": 61,
+      "type": "PreviewImage",
+      "pos": [
+        720,
+        1080
+      ],
+      "size": [
+        300,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 55
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": null,
+      "title": "PREVIEW – REF 4 SKIN CLOSEUP"
+    },
+    {
+      "id": 62,
+      "type": "27eacb9f-0da2-421d-a0bf-b4b4e5fe5709",
+      "pos": [
+        1010,
+        1080
+      ],
+      "size": [
+        240,
+        86
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "positive",
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 58
+        },
+        {
+          "label": "negative",
+          "name": "conditioning_1",
+          "type": "CONDITIONING",
+          "link": 59
+        },
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 56
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 57
+        }
+      ],
+      "outputs": [
+        {
+          "label": "positive",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            60
+          ]
+        },
+        {
+          "label": "negative",
+          "name": "CONDITIONING_1",
+          "type": "CONDITIONING",
+          "links": [
+            61
+          ]
+        }
+      ],
+      "properties": {
+        "proxyWidgets": [],
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [],
+      "title": "REFERENCE 4 – SKIN TEXTURE CONDITIONING"
     }
   ],
   "links": [
@@ -2409,22 +2632,6 @@
       1,
       41,
       1,
-      "CONDITIONING"
-    ],
-    [
-      15,
-      41,
-      0,
-      25,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      16,
-      41,
-      1,
-      25,
-      2,
       "CONDITIONING"
     ],
     [
@@ -2722,6 +2929,70 @@
       41,
       3,
       "VAE"
+    ],
+    [
+      54,
+      38,
+      0,
+      39,
+      0,
+      "IMAGE"
+    ],
+    [
+      55,
+      39,
+      0,
+      61,
+      0,
+      "IMAGE"
+    ],
+    [
+      56,
+      39,
+      0,
+      62,
+      2,
+      "IMAGE"
+    ],
+    [
+      57,
+      22,
+      0,
+      62,
+      3,
+      "VAE"
+    ],
+    [
+      58,
+      41,
+      0,
+      62,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      59,
+      41,
+      1,
+      62,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      60,
+      62,
+      0,
+      25,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      61,
+      62,
+      1,
+      25,
+      2,
+      "CONDITIONING"
     ]
   ],
   "groups": [

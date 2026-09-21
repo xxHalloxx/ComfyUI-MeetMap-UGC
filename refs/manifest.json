@@ -5,7 +5,8 @@
       "identity_refs": [
         "refs/creators/creator_01/face_front.png",
         "refs/creators/creator_01/face_angle.png",
-        "refs/creators/creator_01/upper_body.png"
+        "refs/creators/creator_01/upper_body.png",
+        "refs/creators/creator_01/skin_closeup.png"
       ]
     }
   },
@@ -14,7 +15,11 @@
     "refs/style/style_02.png",
     "refs/style/style_03.png",
     "refs/style/style_04.png",
-    "refs/style/style_05.png"
+    "refs/style/style_05.png",
+    "refs/style/style_06.png",
+    "refs/style/style_07.png",
+    "refs/style/style_08.png",
+    "refs/style/style_09.png"
   ],
   "runtime_input_root": "ComfyUI/input/meetmap_refs"
 }

@@ -148,6 +148,7 @@ PY
     "$input_dir/creator_01/face_front.png" \
     "$input_dir/creator_01/face_angle.png" \
     "$input_dir/creator_01/upper_body.png" \
+    "$input_dir/creator_01/skin_closeup.png" \
     "$models_dir/LLM/Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf" \
     "$models_dir/checkpoints/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors" \
     "$models_dir/ultralytics/bbox/face_yolov8m.pt" \
@@ -160,6 +161,10 @@ PY
     "$models_dir/vae/ltx-2.5-audio-vae-bf16.safetensors" \
     "$models_dir/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors" \
     "$models_dir/text_encoders/gemma4_e2b_it_int8_convrot.safetensors"; do
+    [[ -s "$required_file" ]] || { echo "Pod provisioning incomplete: missing $required_file" >&2; exit 1; }
+  done
+  for style_number in 01 02 03 04 05 06 07 08 09; do
+    required_file="$input_dir/style/style_${style_number}.png"
     [[ -s "$required_file" ]] || { echo "Pod provisioning incomplete: missing $required_file" >&2; exit 1; }
   done
   echo "[MeetMap UGC] ALL REQUIRED MODELS ARE ON THIS POD."
