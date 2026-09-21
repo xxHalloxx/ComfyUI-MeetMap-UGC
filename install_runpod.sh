@@ -71,57 +71,64 @@ main() {
   mkdir -p "$custom_nodes" "$models_dir" "$input_dir"
 
   "$python_bin" - "$comfyui_dir" <<'PY'
-import asyncio
 import importlib
-import inspect
 import pathlib
 import sys
 
 root = pathlib.Path(sys.argv[1])
 if not (root / "main.py").is_file() or not (root / "custom_nodes").is_dir():
     raise SystemExit("Required ComfyUI layout capability is missing.")
+
 sys.path.insert(0, str(root))
 folder_paths = importlib.import_module("folder_paths")
 models_dir = getattr(folder_paths, "models_dir", None)
 if not isinstance(models_dir, str) or not models_dir:
     raise SystemExit("Required folder_paths.models_dir capability is missing.")
 
+# Side-effect-free capability check. Do NOT call nodes.init_extra_nodes() here:
+# some built-in extras expect PromptServer.instance, which only exists during a
+# real ComfyUI startup and produces misleading warnings in a provisioning shell.
 nodes = importlib.import_module("nodes")
-
-# Most of the workflow's required core nodes live in comfy_extras rather than
-# the initial nodes.NODE_CLASS_MAPPINGS.  Load built-in extras before checking
-# capabilities, otherwise a healthy modern ComfyUI is falsely reported as
-# missing SaveVideo, RandomNoise, CFGGuider, Flux2Scheduler, etc.
-init_extra_nodes = getattr(nodes, "init_extra_nodes", None)
-if callable(init_extra_nodes):
-    kwargs = {}
-    try:
-        sig = inspect.signature(init_extra_nodes)
-        if "init_custom_nodes" in sig.parameters:
-            kwargs["init_custom_nodes"] = False
-        if "init_api_nodes" in sig.parameters:
-            kwargs["init_api_nodes"] = True
-    except (TypeError, ValueError):
-        pass
-
-    result = init_extra_nodes(**kwargs)
-    if inspect.isawaitable(result):
-        asyncio.run(result)
-
-required_core = {
-    "CheckpointLoaderSimple", "CLIPTextEncode", "KSampler", "VAEDecode", "ImageScale", "SaveVideo",
-    "LoadImage", "PreviewImage", "SaveImage", "ImageScaleToTotalPixels", "VAEEncode", "ReferenceLatent",
-    "UNETLoader", "CLIPLoader", "VAELoader", "Flux2Scheduler", "EmptyFlux2LatentImage",
-    "SamplerCustomAdvanced", "CFGGuider", "RandomNoise", "KSamplerSelect", "MaskToImage",
+required_base = {
+    "CheckpointLoaderSimple", "CLIPTextEncode", "KSampler", "VAEDecode",
+    "ImageScale", "LoadImage", "PreviewImage", "SaveImage", "VAEEncode",
+    "UNETLoader", "CLIPLoader", "VAELoader",
 }
-missing = sorted(required_core - set(nodes.NODE_CLASS_MAPPINGS))
-if missing:
+missing_base = sorted(required_base - set(nodes.NODE_CLASS_MAPPINGS))
+if missing_base:
+    raise SystemExit("This ComfyUI installation lacks required base nodes: " + ", ".join(missing_base))
+
+required_extra_sources = {
+    "comfy_extras/nodes_custom_sampler.py": [
+        "class SamplerCustomAdvanced", "class CFGGuider", "class KSamplerSelect", "RandomNoise",
+    ],
+    "comfy_extras/nodes_flux.py": [
+        "class Flux2Scheduler", "class EmptyFlux2LatentImage",
+    ],
+    "comfy_extras/nodes_edit_model.py": ["class ReferenceLatent"],
+    "comfy_extras/nodes_mask.py": ["class MaskToImage"],
+    "comfy_extras/nodes_post_processing.py": ["class ImageScaleToTotalPixels"],
+    "comfy_extras/nodes_video.py": ["class SaveVideo"],
+}
+missing_symbols = []
+for rel, symbols in required_extra_sources.items():
+    path = root / rel
+    if not path.is_file():
+        missing_symbols.append(rel + " (file missing)")
+        continue
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    for symbol in symbols:
+        if symbol not in text:
+            missing_symbols.append(f"{rel}: {symbol}")
+if missing_symbols:
     raise SystemExit(
-        "This ComfyUI installation genuinely lacks required capabilities after loading built-in extras: "
-        + ", ".join(missing)
+        "This ComfyUI installation is too old/incomplete for the workflow: "
+        + "; ".join(missing_symbols)
     )
-print("[MeetMap UGC] ComfyUI capability check passed (built-in extras loaded).")
+
+print("[MeetMap UGC] ComfyUI capability check passed.")
 PY
+
 
   ensure_repo "$MEETMAP_REPO_URL" "$meetmap_dir"
   ensure_repo "$IMPACT_PACK_URL" "$custom_nodes/ComfyUI-Impact-Pack" "$IMPACT_PACK_COMMIT"
@@ -219,7 +226,9 @@ PY
   [[ -s "$custom_nodes/ComfyUI-Inpaint-CropAndStitch/inpaint_cropandstitch.py" ]] || { echo "Pod provisioning incomplete: Crop & Stitch custom node missing" >&2; exit 1; }
   echo "[MeetMap UGC] Reddit-style face realism nodes installed: Impact YOLO + Crop & Stitch + FLUX.2 edit."
   echo "[MeetMap UGC] ALL REQUIRED MODELS ARE ON THIS POD."
-  echo "[MeetMap UGC] Installation complete. Restart ComfyUI and import meetmap_ugc_v2.json."
+  echo "[MeetMap UGC] IMPORTANT: custom nodes were installed while ComfyUI may already be running."
+  echo "[MeetMap UGC] RESTART THE RUNPOD POD/COMFYUI PROCESS NOW. A browser refresh is not enough."
+  echo "[MeetMap UGC] After restart, import meetmap_ugc_v2.json."
 }
 
 main "$@"
