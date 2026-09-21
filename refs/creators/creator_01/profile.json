@@ -10,5 +10,18 @@
     "face_angle.png",
     "upper_body.png",
     "skin_closeup.png"
+  ],
+  "reference_folder": "meetmap_refs/creator_01",
+  "max_active_references": 12,
+  "selection_mode": "profile_priority",
+  "identity_priority": [
+    "face_front.png",
+    "face_angle.png"
+  ],
+  "texture_priority": [
+    "skin_closeup.png"
+  ],
+  "body_priority": [
+    "upper_body.png"
   ]
 }
