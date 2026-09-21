@@ -377,7 +377,14 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "UltralyticsDetectorProvider"
+        "Node name for S&R": "UltralyticsDetectorProvider",
+        "models": [
+          {
+            "name": "face_yolov8m.pt",
+            "url": "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt",
+            "directory": "ultralytics/bbox"
+          }
+        ]
       },
       "widgets_values": [
         "bbox/face_yolov8m.pt"
