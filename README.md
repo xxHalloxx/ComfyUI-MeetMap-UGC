@@ -81,3 +81,35 @@ Batch controls:
 - `filename_root`: default `video/meetmap_ugc_v2`.
 
 The default `video_count = 1` preserves the normal single-video workflow.
+
+## LTX 2.5 Motion Control
+
+A second, separate workflow is available as:
+
+`workflows/meetmap_ltx25_motion_control.json`
+
+It is based on Lightricks' official LTX-2.5 Union Control workflow, adapted for **pose-motion transfer**:
+
+```text
+reference motion video
+  -> DWPose
+  -> pose control frames
+  -> LTX Union Control IC-LoRA
+  -> optional start-image conditioning
+  -> LTX 2.5 generation
+  -> decode
+  -> saved video
+```
+
+The reference video supplies the motion/pose sequence. The optional start image and prompt define the generated subject and appearance. Depth and Canny branches were removed from this MeetMap variant so the workflow has one unambiguous motion-control path.
+
+Install the additional motion-control dependencies and official BF16 model set with:
+
+```bash
+test -n "${HF_TOKEN:-}" || { echo "HF_TOKEN fehlt"; exit 1; }; \
+curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/install_ltx25_motion_control.sh \
+  | env -u PIP_CONSTRAINT HF_TOKEN="${HF_TOKEN}" bash
+```
+
+This installs the pinned Lightricks ComfyUI-LTXVideo nodes, DWPose via `comfyui_controlnet_aux`, the official LTX-2.5 BF16 transformer/text encoders/VAEs/upscaler, and the Union Control IC-LoRA. Restart ComfyUI after installation.
+
