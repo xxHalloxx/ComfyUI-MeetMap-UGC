@@ -1,6 +1,6 @@
 {
-  "last_node_id": 65,
-  "last_link_id": 48,
+  "last_node_id": 64,
+  "last_link_id": 50,
   "nodes": [
     {
       "id": 1,
@@ -217,7 +217,7 @@
           "type": "VAE",
           "links": [
             24,
-            45
+            47
           ]
         }
       ],
@@ -392,12 +392,12 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 47
+          "link": 48
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 48
+          "link": 49
         }
       ],
       "outputs": [
@@ -643,7 +643,8 @@
           "links": [
             25,
             26,
-            27
+            27,
+            50
           ]
         }
       ],
@@ -703,7 +704,7 @@
           "slot_index": 0,
           "links": [
             7,
-            42
+            45
           ]
         }
       ],
@@ -759,7 +760,7 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            43
+            46
           ]
         }
       ],
@@ -1041,11 +1042,7 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "links": [
-            34,
-            35,
-            36
-          ],
+          "links": [],
           "shape": 3,
           "slot_index": 0
         },
@@ -1137,7 +1134,7 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 36
+          "link": 50
         }
       ],
       "outputs": [
@@ -1160,7 +1157,7 @@
         1312,
         "center"
       ],
-      "title": "FINAL LTX STARTFRAME – 736 x 1312"
+      "title": "FINAL LTX STARTFRAME – DIRECT FLUX – 736 x 1312"
     },
     {
       "id": 50,
@@ -1231,76 +1228,6 @@
         "meetmap_debug/startframe_raw"
       ],
       "title": "DEBUG – STARTFRAME RAW"
-    },
-    {
-      "id": 52,
-      "type": "PreviewImage",
-      "pos": [
-        3540,
-        440
-      ],
-      "size": [
-        300,
-        100
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 34
-        }
-      ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "PreviewImage"
-      },
-      "widgets_values": null,
-      "title": "PREVIEW – REFINED STARTFRAME"
-    },
-    {
-      "id": 53,
-      "type": "SaveImage",
-      "pos": [
-        3540,
-        560
-      ],
-      "size": [
-        300,
-        100
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 35
-        }
-      ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "SaveImage"
-      },
-      "widgets_values": [
-        "meetmap_debug/startframe_refined"
-      ],
-      "title": "DEBUG – STARTFRAME REFINED"
     },
     {
       "id": 54,
@@ -1621,18 +1548,18 @@
       "title": "OUTPUT – MEETMAP UGC V2 VIDEO"
     },
     {
-      "id": 63,
+      "id": 59,
       "type": "MeetMapReferenceFolderLoader",
       "pos": [
         40,
-        430
+        1080
       ],
       "size": [
-        330,
-        210
+        360,
+        170
       ],
       "flags": {},
-      "order": 9,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1640,14 +1567,15 @@
           "name": "references",
           "type": "MEETMAP_REFERENCE_SET",
           "links": [
-            44
+            42
           ]
         },
         {
           "name": "preview_images",
           "type": "IMAGE",
           "links": [
-            46
+            43,
+            44
           ]
         },
         {
@@ -1662,14 +1590,7 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "MeetMapReferenceFolderLoader",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65
+        "Node name for S&R": "MeetMapReferenceFolderLoader"
       },
       "widgets_values": [
         "meetmap_refs/creator_01",
@@ -1680,24 +1601,24 @@
       "title": "DYNAMIC CREATOR REFERENCES – 1 TO 12+"
     },
     {
-      "id": 64,
+      "id": 62,
       "type": "PreviewImage",
       "pos": [
-        410,
-        430
+        1170,
+        1060
       ],
       "size": [
-        360,
-        250
+        300,
+        120
       ],
       "flags": {},
-      "order": 18,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 46
+          "link": 43
         }
       ],
       "outputs": [
@@ -1710,43 +1631,79 @@
       "properties": {
         "Node name for S&R": "PreviewImage"
       },
-      "widgets_values": null,
+      "widgets_values": [],
       "title": "PREVIEW – ACTIVE CREATOR REFERENCES"
     },
     {
-      "id": 65,
-      "type": "MeetMapMultiReferenceConditioning",
+      "id": 63,
+      "type": "SaveImage",
       "pos": [
-        1010,
-        430
+        1170,
+        1220
       ],
       "size": [
-        390,
-        250
+        300,
+        120
       ],
       "flags": {},
-      "order": 22,
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 44
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "meetmap_debug/references"
+      ],
+      "title": "DEBUG – ACTIVE CREATOR REFERENCES"
+    },
+    {
+      "id": 64,
+      "type": "MeetMapMultiReferenceConditioning",
+      "pos": [
+        1110,
+        1320
+      ],
+      "size": [
+        360,
+        190
+      ],
+      "flags": {},
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 42
+          "link": 45
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 43
+          "link": 46
         },
         {
           "name": "references",
           "type": "MEETMAP_REFERENCE_SET",
-          "link": 44
+          "link": 42
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 45
+          "link": 47
         }
       ],
       "outputs": [
@@ -1754,14 +1711,14 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            47
+            48
           ]
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            48
+            49
           ]
         },
         {
@@ -1776,14 +1733,7 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "MeetMapMultiReferenceConditioning",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65
+        "Node name for S&R": "MeetMapMultiReferenceConditioning"
       },
       "widgets_values": [
         12,
@@ -1994,30 +1944,6 @@
       "BBOX_DETECTOR"
     ],
     [
-      34,
-      48,
-      0,
-      52,
-      0,
-      "IMAGE"
-    ],
-    [
-      35,
-      48,
-      0,
-      53,
-      0,
-      "IMAGE"
-    ],
-    [
-      36,
-      48,
-      0,
-      49,
-      0,
-      "IMAGE"
-    ],
-    [
       37,
       49,
       0,
@@ -2059,59 +1985,75 @@
     ],
     [
       42,
-      42,
+      59,
       0,
-      65,
-      0,
-      "CONDITIONING"
-    ],
-    [
-      43,
-      43,
-      0,
-      65,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      44,
-      63,
-      0,
-      65,
+      64,
       2,
       "MEETMAP_REFERENCE_SET"
     ],
     [
-      45,
-      22,
-      0,
-      65,
-      3,
-      "VAE"
-    ],
-    [
-      46,
-      63,
+      43,
+      59,
       1,
-      64,
+      62,
       0,
       "IMAGE"
     ],
     [
+      44,
+      59,
+      1,
+      63,
+      0,
+      "IMAGE"
+    ],
+    [
+      45,
+      42,
+      0,
+      64,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      46,
+      43,
+      0,
+      64,
+      1,
+      "CONDITIONING"
+    ],
+    [
       47,
-      65,
+      22,
+      0,
+      64,
+      3,
+      "VAE"
+    ],
+    [
+      48,
+      64,
       0,
       25,
       1,
       "CONDITIONING"
     ],
     [
-      48,
-      65,
+      49,
+      64,
       1,
       25,
       2,
       "CONDITIONING"
+    ],
+    [
+      50,
+      29,
+      0,
+      49,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [
@@ -2126,22 +2068,22 @@
       "color": "#3f789e"
     },
     {
-      "title": "DYNAMIC CREATOR REFERENCES",
+      "title": "DYNAMIC CREATOR REFERENCES (1..N)",
       "bounding": [
         20,
         350,
-        800,
-        430
+        940,
+        900
       ],
       "color": "#3f9e78"
     },
     {
-      "title": "DYNAMIC MULTI-REFERENCE CONDITIONING",
+      "title": "DYNAMIC REFERENCE PREPROCESS + CONDITIONING",
       "bounding": [
-        960,
-        350,
-        520,
-        430
+        980,
+        330,
+        700,
+        930
       ],
       "color": "#3f9e78"
     },
@@ -2166,7 +2108,7 @@
       "color": "#7a3f9e"
     },
     {
-      "title": "OPTIONAL FACE REFINEMENT – DEFAULT OFF",
+      "title": "OPTIONAL FACE REFINEMENT – DISCONNECTED / OFF",
       "bounding": [
         2760,
         350,
