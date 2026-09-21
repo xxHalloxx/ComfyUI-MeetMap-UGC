@@ -43,6 +43,12 @@ detect_python
 echo "[MeetMap UGC] ComfyUI: ${COMFYUI_DIR}"
 echo "[MeetMap UGC] Python: ${PYTHON_BIN}"
 
+# Avoid template-level pip constraints leaking into third-party build isolation.
+# Preserve the Pod's existing torch/CUDA stack; do not reinstall torch here.
+unset PIP_CONSTRAINT || true
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+export HF_HUB_DISABLE_PROGRESS_BARS=0
+
 if ! command -v git >/dev/null 2>&1; then
   echo "git is required but is not installed." >&2
   exit 1
@@ -102,7 +108,15 @@ ensure_repo   "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git"   "429d0159a
 ensure_repo   "https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git"   "50c7b71a6a224734cc9b21963c6d1926816a97f1"   "${COMFYUI_DIR}/custom_nodes/ComfyUI-Impact-Subpack"
 
 if [[ -f "${COMFYUI_DIR}/custom_nodes/ComfyUI-Impact-Pack/requirements.txt" ]]; then
-  "${PYTHON_BIN}" -m pip install --no-cache-dir -r "${COMFYUI_DIR}/custom_nodes/ComfyUI-Impact-Pack/requirements.txt"
+  # Install only the Impact Pack dependencies needed by this workflow.
+# SAM2 is optional in Impact Pack and our FaceDetailer graph does not use it.
+# Skipping it avoids RunPod CUDA/PIP constraint conflicts that can otherwise
+# stop provisioning before the model downloads start.
+IMPACT_REQ="${COMFYUI_DIR}/custom_nodes/ComfyUI-Impact-Pack/requirements.txt"
+IMPACT_REQ_FILTERED="$(mktemp)"
+grep -v -E 'facebookresearch/sam2|(^|[[:space:]])sam2([[:space:]@]|$)' "${IMPACT_REQ}" > "${IMPACT_REQ_FILTERED}"
+"${PYTHON_BIN}" -m pip install --no-cache-dir -r "${IMPACT_REQ_FILTERED}"
+rm -f "${IMPACT_REQ_FILTERED}"
 fi
 
 if [[ -f "${COMFYUI_DIR}/custom_nodes/ComfyUI-Impact-Subpack/requirements.txt" ]]; then
@@ -279,6 +293,42 @@ if [[ -f "${WORKFLOW_SRC}" ]]; then
 else
   echo "[MeetMap UGC] Warning: final workflow JSON is missing from the repository." >&2
 fi
+
+# Verify that every model required by the final workflow is physically on this Pod.
+# This prevents ComfyUI's "Choose folders for model(s) before downloading"
+# picker from being needed.
+PYTHONPATH="${COMFYUI_DIR}${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" - "${COMFYUI_DIR}" <<'PY'
+import os
+import sys
+
+root = os.path.abspath(sys.argv[1])
+required = [
+    "models/LLM/Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf",
+    "models/checkpoints/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors",
+    "models/ultralytics/bbox/face_yolov8m.pt",
+    "models/text_encoders/gemma4_e2b_it_int8_convrot.safetensors",
+    "models/diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+    "models/vae/ltx-2.5-video-vae-bf16.safetensors",
+    "models/vae/ltx-2.5-audio-vae-bf16.safetensors",
+    "models/text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+    "models/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
+]
+
+missing = []
+for rel in required:
+    path = os.path.join(root, rel)
+    if not os.path.isfile(path) or os.path.getsize(path) <= 0:
+        missing.append(path)
+
+if missing:
+    print("\n[MeetMap UGC] ERROR: Pod provisioning is incomplete. Missing:")
+    for path in missing:
+        print(f"  - {path}")
+    raise SystemExit(2)
+
+print("[MeetMap UGC] ALL REQUIRED MODELS ARE ON THIS POD.")
+print("[MeetMap UGC] Do not use ComfyUI's manual Download-to-Pod model picker.")
+PY
 
 # Static package checks only; no GPU inference is triggered.
 "${PYTHON_BIN}" -m py_compile "${SCRIPT_DIR}/nodes.py" "${SCRIPT_DIR}/__init__.py"
