@@ -7,7 +7,11 @@
         "refs/creators/creator_01/face_angle.png",
         "refs/creators/creator_01/upper_body.png",
         "refs/creators/creator_01/skin_closeup.png"
-      ]
+      ],
+      "reference_folder": "refs/creators/creator_01",
+      "runtime_reference_folder": "meetmap_refs/creator_01",
+      "max_active_references": 12,
+      "selection_mode": "profile_priority"
     }
   },
   "style_refs": [
