@@ -139,6 +139,51 @@ fi
 # Gated LTX 2.5 files: ComfyUI may show these with orange lock icons.
 # If HF_TOKEN is available, download them directly so the workflow does not
 # depend on the frontend downloader being authenticated.
+# Public workflow models are installed directly as well. This removes the
+# need to use ComfyUI's manual "Download to Pod" model picker.
+echo "[MeetMap UGC] Ensuring public workflow models are installed..."
+PYTHONPATH="${COMFYUI_DIR}${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" - "${COMFYUI_DIR}" <<'PY'
+import os
+import sys
+from huggingface_hub import hf_hub_download
+
+comfyui_dir = os.path.abspath(sys.argv[1])
+models_dir = os.path.join(comfyui_dir, "models")
+
+required = [
+    (
+        "RunDiffusion/Juggernaut-XL-v9",
+        "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors",
+        os.path.join(models_dir, "checkpoints", "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"),
+        os.path.join(models_dir, "checkpoints"),
+    ),
+    (
+        "Comfy-Org/gemma-4",
+        "text_encoders/gemma4_e2b_it_int8_convrot.safetensors",
+        os.path.join(models_dir, "text_encoders", "gemma4_e2b_it_int8_convrot.safetensors"),
+        models_dir,
+    ),
+]
+
+for repo_id, repo_path, expected, local_dir in required:
+    if os.path.isfile(expected) and os.path.getsize(expected) > 0:
+        print(f"[MeetMap UGC] Already present: {expected}")
+        continue
+
+    print(f"[MeetMap UGC] Downloading public model: {repo_id}/{repo_path}")
+    os.makedirs(os.path.dirname(expected), exist_ok=True)
+    downloaded = hf_hub_download(
+        repo_id=repo_id,
+        filename=repo_path,
+        local_dir=local_dir,
+    )
+
+    if not os.path.isfile(expected) or os.path.getsize(expected) <= 0:
+        raise SystemExit(
+            f"[MeetMap UGC] Download returned {downloaded!r}, but expected file is missing: {expected}"
+        )
+PY
+
 if [[ -n "${HF_TOKEN:-}" ]]; then
   echo "[MeetMap UGC] HF_TOKEN detected. Ensuring gated LTX 2.5 models are installed..."
   PYTHONPATH="${COMFYUI_DIR}${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" - "${COMFYUI_DIR}" <<'PY'
@@ -214,4 +259,4 @@ echo "[MeetMap UGC] Installation complete."
 echo "[MeetMap UGC] Restart ComfyUI if it is already running."
 echo "[MeetMap UGC] Open meetmap_ugc_realistic_runpod.json."
 echo "[MeetMap UGC] Qwen downloads automatically on the first Queue run if missing."
-echo "[MeetMap UGC] Large Juggernaut/LTX models remain handled by the workflow's ComfyUI model metadata."
+echo "[MeetMap UGC] Juggernaut, face detector, prompt enhancer and LTX models are installed directly when possible."
