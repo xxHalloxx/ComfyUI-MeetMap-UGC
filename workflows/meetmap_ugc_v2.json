@@ -817,7 +817,7 @@
         "Node name for S&R": "PreviewImage"
       },
       "widgets_values": null,
-      "title": "PREVIEW – REFERENCE 1 – FACE FRONT"
+      "title": "PREVIEW – REF 1 FACE FRONT"
     },
     {
       "id": 33,
@@ -1042,7 +1042,7 @@
         "Node name for S&R": "PreviewImage"
       },
       "widgets_values": null,
-      "title": "PREVIEW – REFERENCE 2 – FACE ANGLE"
+      "title": "PREVIEW – REF 2 FACE ANGLE"
     },
     {
       "id": 37,
@@ -1270,7 +1270,7 @@
         "Node name for S&R": "PreviewImage"
       },
       "widgets_values": null,
-      "title": "PREVIEW – REFERENCE 3 – BODY / OUTFIT"
+      "title": "PREVIEW – REF 3 UPPER BODY"
     },
     {
       "id": 41,
