@@ -71,7 +71,9 @@ main() {
   mkdir -p "$custom_nodes" "$models_dir" "$input_dir"
 
   "$python_bin" - "$comfyui_dir" <<'PY'
+import asyncio
 import importlib
+import inspect
 import pathlib
 import sys
 
@@ -83,7 +85,29 @@ folder_paths = importlib.import_module("folder_paths")
 models_dir = getattr(folder_paths, "models_dir", None)
 if not isinstance(models_dir, str) or not models_dir:
     raise SystemExit("Required folder_paths.models_dir capability is missing.")
+
 nodes = importlib.import_module("nodes")
+
+# Most of the workflow's required core nodes live in comfy_extras rather than
+# the initial nodes.NODE_CLASS_MAPPINGS.  Load built-in extras before checking
+# capabilities, otherwise a healthy modern ComfyUI is falsely reported as
+# missing SaveVideo, RandomNoise, CFGGuider, Flux2Scheduler, etc.
+init_extra_nodes = getattr(nodes, "init_extra_nodes", None)
+if callable(init_extra_nodes):
+    kwargs = {}
+    try:
+        sig = inspect.signature(init_extra_nodes)
+        if "init_custom_nodes" in sig.parameters:
+            kwargs["init_custom_nodes"] = False
+        if "init_api_nodes" in sig.parameters:
+            kwargs["init_api_nodes"] = True
+    except (TypeError, ValueError):
+        pass
+
+    result = init_extra_nodes(**kwargs)
+    if inspect.isawaitable(result):
+        asyncio.run(result)
+
 required_core = {
     "CheckpointLoaderSimple", "CLIPTextEncode", "KSampler", "VAEDecode", "ImageScale", "SaveVideo",
     "LoadImage", "PreviewImage", "SaveImage", "ImageScaleToTotalPixels", "VAEEncode", "ReferenceLatent",
@@ -92,8 +116,11 @@ required_core = {
 }
 missing = sorted(required_core - set(nodes.NODE_CLASS_MAPPINGS))
 if missing:
-    raise SystemExit("This ComfyUI installation lacks required capabilities: " + ", ".join(missing))
-print("[MeetMap UGC] ComfyUI capability check passed.")
+    raise SystemExit(
+        "This ComfyUI installation genuinely lacks required capabilities after loading built-in extras: "
+        + ", ".join(missing)
+    )
+print("[MeetMap UGC] ComfyUI capability check passed (built-in extras loaded).")
 PY
 
   ensure_repo "$MEETMAP_REPO_URL" "$meetmap_dir"
