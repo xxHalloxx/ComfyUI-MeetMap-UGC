@@ -92,6 +92,7 @@ PY
   ensure_repo "$IMPACT_SUBPACK_URL" "$custom_nodes/ComfyUI-Impact-Subpack" "$IMPACT_SUBPACK_COMMIT"
 
   "$python_bin" -m pip install -r "$meetmap_dir/requirements.txt"
+  "$python_bin" -m py_compile "$meetmap_dir/nodes.py" "$meetmap_dir/reference_nodes.py" "$meetmap_dir/__init__.py"
   [[ ! -f "$custom_nodes/ComfyUI-Impact-Pack/requirements.txt" ]] || "$python_bin" -m pip install -r "$custom_nodes/ComfyUI-Impact-Pack/requirements.txt"
   [[ ! -f "$custom_nodes/ComfyUI-Impact-Subpack/requirements.txt" ]] || "$python_bin" -m pip install -r "$custom_nodes/ComfyUI-Impact-Subpack/requirements.txt"
 
@@ -143,12 +144,12 @@ PY
   cp "$meetmap_dir/workflows/meetmap_ugc_v2.json" "$comfyui_dir/user/default/workflows/meetmap_ugc_v2.json"
   cp "$meetmap_dir/workflows/meetmap_ugc_realistic_runpod.json" "$comfyui_dir/user/default/workflows/meetmap_ugc_realistic_runpod.json"
 
-  local required_file
+  local creator_ref_count required_file
+  creator_ref_count="$(find "$input_dir/creator_01" -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) -size +0c | wc -l | tr -d ' ')"
+  [[ "${creator_ref_count:-0}" -ge 1 ]] || { echo "Pod provisioning incomplete: no creator reference images found in $input_dir/creator_01" >&2; exit 1; }
+  echo "[MeetMap UGC] Creator reference pool: $creator_ref_count image(s). Workflow default max: 12."
+
   for required_file in \
-    "$input_dir/creator_01/face_front.png" \
-    "$input_dir/creator_01/face_angle.png" \
-    "$input_dir/creator_01/upper_body.png" \
-    "$input_dir/creator_01/skin_closeup.png" \
     "$models_dir/LLM/Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf" \
     "$models_dir/checkpoints/Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors" \
     "$models_dir/ultralytics/bbox/face_yolov8m.pt" \
@@ -163,10 +164,7 @@ PY
     "$models_dir/text_encoders/gemma4_e2b_it_int8_convrot.safetensors"; do
     [[ -s "$required_file" ]] || { echo "Pod provisioning incomplete: missing $required_file" >&2; exit 1; }
   done
-  for style_number in 01 02 03 04 05 06 07 08 09; do
-    required_file="$input_dir/style/style_${style_number}.png"
-    [[ -s "$required_file" ]] || { echo "Pod provisioning incomplete: missing $required_file" >&2; exit 1; }
-  done
+
   echo "[MeetMap UGC] ALL REQUIRED MODELS ARE ON THIS POD."
   echo "[MeetMap UGC] Installation complete. Restart ComfyUI and import meetmap_ugc_v2.json."
 }
