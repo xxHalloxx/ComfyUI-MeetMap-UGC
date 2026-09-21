@@ -65,3 +65,19 @@ The workflow includes previews for the raw startframe, detected face mask, face 
 ## App Mode
 
 `meetmap_ugc_v2.json` contains ComfyUI App Mode metadata. It exposes the main generation controls plus advanced face-refinement controls, and surfaces generated topic/hook/script/prompts/acting beats together with all important intermediate images and the final video.
+
+
+## Multi-video batches
+
+The v2 workflow includes `MeetMapVideoBatchPlanner`. Set **Video count** in App Mode from 1 to 10.
+
+The planner emits native ComfyUI list outputs, so downstream nodes are mapped once per requested video. This means each item gets a new MeetMap content generation, independent content/FLUX/face/LTX seeds, a new FLUX.2 start frame, the face-realism Crop & Stitch pass, and a separate LTX 2.5 render.
+
+Batch controls:
+- `video_count`: 1-10, default 1.
+- `base_seed`: base value for deterministic batches.
+- `seed_mode`: `increment` or deterministic `random_per_video`.
+- `save_run_folder`: when enabled, outputs are grouped under a unique run folder.
+- `filename_root`: default `video/meetmap_ugc_v2`.
+
+The default `video_count = 1` preserves the normal single-video workflow.
