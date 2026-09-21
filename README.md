@@ -22,7 +22,7 @@ The bootstrap recursively copies committed creator references into `ComfyUI/inpu
 
 The v1 workflow remains available as `workflows/meetmap_ugc_realistic_runpod.json`.
 
-During v2 execution, reference previews, processed-reference previews, raw/refined/final startframe previews and debug SaveImage outputs are visible before the LTX video finishes. FaceDetailer is present as an optional bypassed refinement stage (default OFF). No external inference API, Motion Control, SCAIL or source-video cloning is used.
+During v2 execution, active-reference previews, the raw FLUX startframe, YOLO face mask, face crop before/after FLUX.2 refinement, stitched face-realism frame, final LTX startframe, and debug outputs are visible before the LTX video finishes. FaceDetailer/Juggernaut is no longer used in the production path; refinement reuses FLUX.2 Klein through Crop & Stitch. No external inference API, Motion Control, SCAIL or source-video cloning is used.
 
 
 ## Dynamic creator references
@@ -40,3 +40,28 @@ Priority is read from `profile.json` when present. Face/identity references shou
 The separate `refs/style/` folder is not automatically mixed into identity conditioning. This avoids accidental identity drift if style references later contain other people.
 
 The workflow shows a batch preview titled `PREVIEW – ACTIVE CREATOR REFERENCES` before FLUX sampling starts.
+
+
+## Face realism pipeline
+
+The v2 production workflow now uses a Reddit/community-style local face refinement path before LTX:
+
+```
+FLUX.2 startframe
+  -> YOLO face detection (Impact Pack / Impact Subpack)
+  -> Inpaint Crop at 1024px
+  -> official FLUX.2 Klein 4B Image Edit subgraph
+  -> Inpaint Stitch
+  -> final 736x1312 LTX startframe
+  -> LTX 2.5
+```
+
+The refinement prompt is deliberately identity-preserving and targets pores, skin microtexture, peach fuzz, eyelids, irises, eyelashes, eyebrows, lips, subtle asymmetry, smartphone softness, and sensor imperfections while explicitly avoiding beauty-filter/plastic-skin changes.
+
+A separate eye-only pass is intentionally not enabled by default because independently refining the eyes can create mismatched eyes or identity drift. The face is refined as one coherent crop.
+
+The workflow includes previews for the raw startframe, detected face mask, face crop before refinement, face crop after FLUX.2 refinement, stitched full frame, final LTX startframe, active creator references, and final video.
+
+## App Mode
+
+`meetmap_ugc_v2.json` contains ComfyUI App Mode metadata. It exposes the main generation controls plus advanced face-refinement controls, and surfaces generated topic/hook/script/prompts/acting beats together with all important intermediate images and the final video.
