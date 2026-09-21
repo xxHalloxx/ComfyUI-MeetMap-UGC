@@ -24,19 +24,24 @@ It is stored under:
 
 Use a normal ComfyUI RunPod image/template. No MeetMap-specific Docker image is required.
 
-The repository is public, so no GitHub token is needed:
+### Preferred one-command installer
+
+Run this from **any directory inside the RunPod terminal**:
 
 ```bash
-cd /workspace/ComfyUI/custom_nodes
-if [ -d ComfyUI-MeetMap-UGC/.git ]; then
-  git -C ComfyUI-MeetMap-UGC pull --ff-only
-else
-  git clone https://github.com/xxHalloxx/ComfyUI-MeetMap-UGC.git
-fi
-bash ComfyUI-MeetMap-UGC/install_runpod.sh
+curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/bootstrap_runpod.sh | bash
 ```
 
-If your ComfyUI installation lives somewhere else, set `COMFYUI_DIR` first. The installer also detects common locations such as `/workspace/ComfyUI`, `/ComfyUI`, and `/opt/ComfyUI`.
+The bootstrap script automatically searches common RunPod/ComfyUI locations (including `/workspace/runpod-slim` layouts), finds the real ComfyUI directory, clones/updates this repository inside its `custom_nodes` folder, and then runs `install_runpod.sh`.
+
+If auto-detection fails, it prints a diagnostic command instead of guessing a path.
+
+You can also set `COMFYUI_DIR` manually before running it:
+
+```bash
+export COMFYUI_DIR=/actual/path/to/ComfyUI
+curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/bootstrap_runpod.sh | bash
+```
 
 Then restart ComfyUI.
 
