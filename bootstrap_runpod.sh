@@ -4,6 +4,22 @@ set -euo pipefail
 REPO_URL="https://github.com/xxHalloxx/ComfyUI-MeetMap-UGC.git"
 REPO_NAME="ComfyUI-MeetMap-UGC"
 
+# Full Pod provisioning requires Hugging Face authentication for gated LTX 2.5.
+# Fail before changing anything so the user never reaches ComfyUI with only a
+# partially installed model set.
+if [[ -z "${HF_TOKEN:-}" ]]; then
+  echo "[MeetMap UGC] ERROR: HF_TOKEN is not set on this RunPod." >&2
+  echo "[MeetMap UGC] Add HF_TOKEN to the Pod environment using the Hugging Face account that has accepted Lightricks/LTX-2.5 access, then run this command again." >&2
+  exit 2
+fi
+
+# Some RunPod images export a PIP_CONSTRAINT pinning their CUDA torch build.
+# That breaks SAM2 build isolation even though SAM2 is optional for our graph.
+# The installer also skips the optional SAM2 dependency, but remove the leaked
+# constraint here as an extra preventive guard.
+unset PIP_CONSTRAINT || true
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+
 find_comfyui() {
   if [[ -n "${COMFYUI_DIR:-}" && -f "${COMFYUI_DIR}/main.py" ]]; then
     printf '%s\n' "${COMFYUI_DIR}"
@@ -52,4 +68,6 @@ else
 fi
 
 export COMFYUI_DIR
+echo "[MeetMap UGC] Starting FULL Pod provisioning. Do not open the workflow until this finishes."
 bash "${DEST}/install_runpod.sh"
+echo "[MeetMap UGC] Bootstrap finished. Restart ComfyUI, then open the MeetMap workflow. No manual model picker should be needed."
