@@ -5,7 +5,7 @@ unset PIP_CONSTRAINT
 
 comfyui_dir="${COMFYUI_DIR:-}"
 if [[ -z "$comfyui_dir" ]]; then
-  for candidate in /workspace/ComfyUI /ComfyUI /opt/ComfyUI; do
+  for candidate in /workspace/ComfyUI /workspace/runpod-slim /workspace/runpod-slim/ComfyUI /ComfyUI /opt/ComfyUI; do
     if [[ -f "$candidate/main.py" ]]; then comfyui_dir="$candidate"; break; fi
   done
 fi
