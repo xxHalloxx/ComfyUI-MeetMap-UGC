@@ -2,7 +2,9 @@ import gc
 import json
 import math
 import os
+import random
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
@@ -177,6 +179,127 @@ def _validate_payload(payload: Dict[str, Any], duration_override: str) -> Dict[s
     return normalized
 
 
+class MeetMapVideoBatchPlanner:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_count": ("INT", {"default": 1, "min": 1, "max": 10, "step": 1}),
+                "base_seed": (
+                    "INT",
+                    {
+                        "default": 42,
+                        "min": 0,
+                        "max": 0xFFFFFFFFFFFFFFFF,
+                    },
+                ),
+                "seed_mode": (["increment", "random_per_video"], {"default": "increment"}),
+                "save_run_folder": ("BOOLEAN", {"default": True}),
+                "filename_root": (
+                    "STRING",
+                    {"default": "video/meetmap_ugc_v2", "multiline": False},
+                ),
+            }
+        }
+
+    RETURN_TYPES = (
+        "STRING",
+        "INT",
+        "INT",
+        "INT",
+        "INT",
+        "INT",
+        "INT",
+        "STRING",
+        "STRING",
+    )
+    RETURN_NAMES = (
+        "variation_note",
+        "video_index",
+        "total_videos",
+        "content_seed",
+        "flux_seed",
+        "face_seed",
+        "ltx_seed",
+        "filename_prefix",
+        "progress",
+    )
+    OUTPUT_IS_LIST = (True, True, True, True, True, True, True, True, True)
+    FUNCTION = "plan"
+    CATEGORY = "MeetMap/UGC"
+    DESCRIPTION = (
+        "Creates one mapped ComfyUI job per requested video. Downstream nodes automatically "
+        "execute once per list item, so the full MeetMap pipeline is regenerated for every video."
+    )
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
+
+    def plan(self, video_count, base_seed, seed_mode, save_run_folder, filename_root):
+        count = max(1, min(10, int(video_count)))
+        base = int(base_seed) & 0xFFFFFFFFFFFFFFFF
+        root = str(filename_root).strip().strip("/") or "video/meetmap_ugc_v2"
+
+        if str(seed_mode) == "random_per_video":
+            rng = random.Random(base)
+            content_seeds = []
+            seen = set()
+            while len(content_seeds) < count:
+                value = rng.randrange(0, 0x10000000000000000)
+                if value not in seen:
+                    seen.add(value)
+                    content_seeds.append(value)
+        else:
+            content_seeds = [
+                (base + index) & 0xFFFFFFFFFFFFFFFF
+                for index in range(count)
+            ]
+
+        run_stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        run_folder = f"run_{run_stamp}_{base & 0xFFFF:04x}"
+
+        variation_notes = []
+        video_indices = []
+        totals = []
+        flux_seeds = []
+        face_seeds = []
+        ltx_seeds = []
+        filename_prefixes = []
+        progress_labels = []
+
+        for zero_index, seed in enumerate(content_seeds):
+            index = zero_index + 1
+            variation_notes.append(
+                f"Variation {index} of {count}. Create a clearly distinct MeetMap concept, hook, "
+                "German spoken script, image prompt and video prompt for this variation. Avoid "
+                "reusing the same angle, opening sentence, activity, setting details or wording "
+                "from the other variations in this batch. Keep it authentic young smartphone UGC."
+            )
+            video_indices.append(index)
+            totals.append(count)
+            flux_seeds.append((seed + 0x9E3779B97F4A7C15) & 0xFFFFFFFFFFFFFFFF)
+            face_seeds.append((seed + 0xD1B54A32D192ED03) & 0xFFFFFFFFFFFFFFFF)
+            ltx_seeds.append((seed + 0x94D049BB133111EB) & 0xFFFFFFFFFFFFFFFF)
+            if bool(save_run_folder):
+                filename_prefixes.append(f"{root}/{run_folder}/video_{index:02d}")
+            else:
+                filename_prefixes.append(f"{root}/video_{index:02d}")
+            progress_labels.append(f"Video {index} / {count}")
+
+        return (
+            variation_notes,
+            video_indices,
+            totals,
+            content_seeds,
+            flux_seeds,
+            face_seeds,
+            ltx_seeds,
+            filename_prefixes,
+            progress_labels,
+        )
+
+
 class MeetMapContentGenerator:
     @classmethod
     def INPUT_TYPES(cls):
@@ -197,7 +320,12 @@ class MeetMapContentGenerator:
                         "control_after_generate": True,
                     },
                 ),
-            }
+            },
+            "optional": {
+                "variation_note": ("STRING", {"forceInput": True, "multiline": True}),
+                "video_index": ("INT", {"forceInput": True, "min": 1, "max": 10}),
+                "total_videos": ("INT", {"forceInput": True, "min": 1, "max": 10}),
+            },
         }
 
     RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING", "INT", "STRING")
@@ -219,6 +347,9 @@ class MeetMapContentGenerator:
         duration_override,
         content_style,
         seed,
+        variation_note="",
+        video_index=1,
+        total_videos=1,
     ):
         model_path = os.path.abspath(os.path.join(folder_paths.models_dir, "LLM", model_name))
         allowed_root = os.path.abspath(os.path.join(folder_paths.models_dir, "LLM")) + os.sep
@@ -233,6 +364,11 @@ class MeetMapContentGenerator:
             f"room_type={room_type}\n"
             f"duration_override={duration_override}\n"
             f"content_style={content_style}\n"
+            f"video_index={int(video_index)}\n"
+            f"total_videos={int(total_videos)}\n"
+            f"variation_note={str(variation_note).strip() or 'single-video run'}\n"
+            "Wenn total_videos > 1 ist, muss diese Variante in Thema, Hook, Formulierung, Aktivitaet und "
+            "visueller Situation klar eigenstaendig sein. Vermeide Wiederholungen innerhalb des Batches.\n"
             "AUTO bedeutet: selbst sinnvoll und abwechslungsreich entscheiden. Nur das JSON-Objekt ausgeben."
         )
 
@@ -360,12 +496,14 @@ Maintain direct eye contact most of the time, natural blinking, subtle breathing
 
 
 NODE_CLASS_MAPPINGS = {
+    "MeetMapVideoBatchPlanner": MeetMapVideoBatchPlanner,
     "MeetMapContentGenerator": MeetMapContentGenerator,
     "MeetMapLTXPromptBuilder": MeetMapLTXPromptBuilder,
     "MeetMapLTXRelayPromptBuilder": MeetMapLTXRelayPromptBuilder,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "MeetMapVideoBatchPlanner": "MeetMap Video Batch Planner",
     "MeetMapContentGenerator": "MeetMap Content Generator",
     "MeetMapLTXPromptBuilder": "MeetMap LTX Prompt Builder",
     "MeetMapLTXRelayPromptBuilder": "MeetMap LTX Relay Prompt Builder",
