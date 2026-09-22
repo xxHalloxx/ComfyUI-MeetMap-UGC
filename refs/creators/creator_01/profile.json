@@ -12,6 +12,12 @@
     "skin_closeup.png"
   ],
   "reference_folder": "meetmap_refs/creator_01",
+  "voice_reference_path": "meetmap_refs/creator_01/voice/reference.flac",
+  "voice_drive_file_id": "1BjZUeye3fVAkA1DtvdlYdsNQzMY_gANt",
+  "voice_sha256": "e0c502c490c74bbda5226fae8fb95206bb6facf1eb2d1d2ff025b19f9ae62fb7",
+  "voice_conversion": "Seed-VC",
+  "voice_language": "English",
+  "voice_reference_duration_seconds": 10.03,
   "max_active_references": 12,
   "selection_mode": "profile_priority",
   "identity_priority": [
