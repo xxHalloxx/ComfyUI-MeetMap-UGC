@@ -66,7 +66,7 @@ def main():
     validate_node_links(nodes, links, "top-level")
 
     required_top = {
-        "MeetMapGoogleDriveLatestVideo",
+        "MeetMapGoogleDriveLatestVideoSafe",
         "MeetMapSCAILReferenceBatch",
         "MeetMapSCAILLongVideoPlanner",
         "MeetMapSCAILChunkStitch",
@@ -82,6 +82,8 @@ def main():
     missing = sorted(required_top - top_types)
     if missing:
         fail("missing required top-level nodes: " + ", ".join(missing))
+    if "MeetMapGoogleDriveLatestVideo" in top_types:
+        fail("hard Drive source loader is still present; safe loader with local fallback must be used")
     if "SeedVCRun" in top_types:
         fail("raw SeedVCRun is still present; fallback wrapper must be used")
     if "SaveVideo" in top_types:
