@@ -193,6 +193,108 @@ class MeetMapSceneReferenceBatch:
         return (batch, status)
 
 
+class MeetMapSCAILReferenceBatch:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "primary_image": ("IMAGE",),
+                "references": ("MEETMAP_REFERENCE_SET",),
+                "priority_filenames": (
+                    "STRING",
+                    {
+                        "default": "face_front.png\nface_angle.png\nupper_body.png",
+                        "multiline": True,
+                    },
+                ),
+                "max_additional_references": (
+                    "INT",
+                    {"default": 3, "min": 1, "max": 6},
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("image_batch", "status")
+    FUNCTION = "build"
+    CATEGORY = "MeetMap/SCAIL"
+    DESCRIPTION = (
+        "Builds the native SCAIL-2 multi-reference image batch. The generated character "
+        "start frame stays first/primary; selected creator views follow as additional refs."
+    )
+
+    def build(self, primary_image, references, priority_filenames, max_additional_references):
+        if primary_image is None or primary_image.ndim != 4 or primary_image.shape[0] < 1:
+            raise ValueError("primary_image must contain at least one IMAGE frame.")
+        if not isinstance(references, (list, tuple)) or not references:
+            raise RuntimeError("MeetMap creator reference set is empty.")
+
+        primary = primary_image[:1, ..., :3].clamp(0.0, 1.0)
+        target_h = int(primary.shape[1])
+        target_w = int(primary.shape[2])
+        limit = max(1, min(6, int(max_additional_references)))
+
+        by_name = {}
+        ordered = []
+        for item in references:
+            if not isinstance(item, dict) or item.get("image") is None:
+                continue
+            name = str(item.get("filename", "")).replace("\\", "/")
+            by_name[name] = item
+            by_name[Path(name).name] = item
+            ordered.append(item)
+
+        requested = [
+            line.strip().replace("\\", "/")
+            for line in str(priority_filenames or "").splitlines()
+            if line.strip()
+        ]
+
+        selected = []
+        seen = set()
+        for wanted in requested:
+            item = by_name.get(wanted) or by_name.get(Path(wanted).name)
+            if item is None:
+                continue
+            key = str(item.get("filename", wanted))
+            if key in seen:
+                continue
+            selected.append(item)
+            seen.add(key)
+            if len(selected) >= limit:
+                break
+
+        # Fail-soft on naming only: if one requested view was renamed, fill the remaining
+        # slots from the already validated reference set instead of silently losing
+        # multi-reference conditioning.
+        if len(selected) < limit:
+            for item in ordered:
+                key = str(item.get("filename", ""))
+                if key in seen:
+                    continue
+                selected.append(item)
+                seen.add(key)
+                if len(selected) >= limit:
+                    break
+
+        if not selected:
+            raise RuntimeError("No usable creator images were available for SCAIL multi-reference.")
+
+        batch_parts = [primary]
+        names = []
+        for index, item in enumerate(selected, start=1):
+            image = item["image"]
+            batch_parts.append(_resize_cover(image, target_h, target_w))
+            names.append(str(item.get("filename", f"reference_{index:02d}")))
+
+        batch = torch.cat(batch_parts, dim=0)
+        status = (
+            f"SCAIL-2 multi-reference batch: 1 generated primary + {len(names)} additional "
+            f"creator views at {target_w}x{target_h}: " + ", ".join(names)
+        )
+        return (batch, status)
+
+
 class MeetMapReferenceFolderLoader:
     @classmethod
     def INPUT_TYPES(cls):
@@ -318,12 +420,14 @@ class MeetMapMultiReferenceConditioning:
 
 NODE_CLASS_MAPPINGS = {
     "MeetMapSceneReferenceBatch": MeetMapSceneReferenceBatch,
+    "MeetMapSCAILReferenceBatch": MeetMapSCAILReferenceBatch,
     "MeetMapReferenceFolderLoader": MeetMapReferenceFolderLoader,
     "MeetMapMultiReferenceConditioning": MeetMapMultiReferenceConditioning,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "MeetMapSceneReferenceBatch": "MeetMap Scene + Character Reference Batch",
+    "MeetMapSCAILReferenceBatch": "MeetMap SCAIL-2 Multi Reference Batch",
     "MeetMapReferenceFolderLoader": "MeetMap Reference Folder Loader",
     "MeetMapMultiReferenceConditioning": "MeetMap Multi Reference Conditioning",
 }
