@@ -123,60 +123,195 @@ class MeetMapSCAILChunkStitch:
     FUNCTION = "stitch"
     CATEGORY = "MeetMap/SCAIL"
     DESCRIPTION = (
-        "Collects mapped SCAIL chunk outputs, drops the repeated overlap from every "
-        "segment after the first, concatenates them in order, and trims to the exact target."
+        "Fault-tolerant SCAIL chunk stitcher. It repairs small resolution mismatches, "
+        "tolerates short final chunks, removes overlap, and pads a short final result "
+        "with the last valid frame instead of failing the whole workflow."
     )
 
     def stitch(self, chunks, overlap_frames, target_frame_count):
         tensors = _flatten_tensors(chunks)
         if not tensors:
-            raise RuntimeError("No SCAIL chunks were provided for stitching.")
+            raise RuntimeError("No SCAIL chunks were produced; there is no valid visual fallback to stitch.")
 
         overlap = max(0, int(_first_scalar(overlap_frames, 5)))
         target = max(1, int(_first_scalar(target_frame_count, 1)))
-
         prepared = []
-        expected_shape = None
         source_lengths = []
+        warnings = []
+        target_h = target_w = target_c = None
+
         for idx, tensor in enumerate(tensors):
-            if tensor.ndim != 4:
-                raise ValueError(
-                    f"SCAIL chunk #{idx + 1} must be IMAGE [B,H,W,C], got {tuple(tensor.shape)}."
-                )
-            if tensor.shape[0] < 1:
-                raise ValueError(f"SCAIL chunk #{idx + 1} is empty.")
+            if not isinstance(tensor, torch.Tensor) or tensor.ndim != 4 or tensor.shape[0] < 1:
+                warnings.append(f"ignored invalid chunk #{idx + 1}")
+                continue
 
-            shape = tuple(tensor.shape[1:])
-            if expected_shape is None:
-                expected_shape = shape
-            elif shape != expected_shape:
-                raise ValueError(
-                    f"SCAIL chunk resolution mismatch: expected {expected_shape}, got {shape}."
-                )
-
+            tensor = tensor[..., :3].clamp(0.0, 1.0)
             source_lengths.append(int(tensor.shape[0]))
-            if idx == 0:
-                prepared.append(tensor)
-            else:
-                if tensor.shape[0] <= overlap:
-                    raise ValueError(
-                        f"SCAIL chunk #{idx + 1} has only {tensor.shape[0]} frames, "
-                        f"not enough for {overlap}-frame overlap."
+            h, w, ch = map(int, tensor.shape[1:])
+
+            if target_h is None:
+                target_h, target_w, target_c = h, w, ch
+            elif (h, w, ch) != (target_h, target_w, target_c):
+                try:
+                    import torch.nn.functional as F
+                    tensor = tensor.permute(0, 3, 1, 2)
+                    tensor = F.interpolate(
+                        tensor,
+                        size=(target_h, target_w),
+                        mode="bilinear",
+                        align_corners=False,
                     )
-                prepared.append(tensor[overlap:])
+                    tensor = tensor.permute(0, 2, 3, 1).contiguous()
+                    warnings.append(
+                        f"resized chunk #{idx + 1} from {w}x{h} to {target_w}x{target_h}"
+                    )
+                except Exception as exc:
+                    warnings.append(f"ignored mismatched chunk #{idx + 1}: {exc}")
+                    continue
+
+            if not prepared:
+                prepared.append(tensor)
+                continue
+
+            drop = min(overlap, max(0, int(tensor.shape[0]) - 1))
+            if drop < overlap:
+                warnings.append(
+                    f"chunk #{idx + 1} was shorter than expected; removed only {drop} overlap frame(s)"
+                )
+            prepared.append(tensor[drop:])
+
+        if not prepared:
+            raise RuntimeError("All SCAIL chunks were invalid; no usable frames remain.")
 
         result = torch.cat(prepared, dim=0)
         if result.shape[0] < target:
-            raise RuntimeError(
-                f"Stitched SCAIL result is too short: {result.shape[0]} < target {target}."
-            )
-        result = result[:target]
+            missing = target - int(result.shape[0])
+            last = result[-1:].repeat(missing, 1, 1, 1)
+            result = torch.cat([result, last], dim=0)
+            warnings.append(f"padded {missing} missing frame(s) with the last valid frame")
+        elif result.shape[0] > target:
+            result = result[:target]
 
         status = (
-            f"Stitched {len(tensors)} SCAIL segment(s) {source_lengths} with "
+            f"Stitched {len(prepared)} usable SCAIL segment(s) {source_lengths} with "
             f"{overlap}-frame overlap -> {int(result.shape[0])} final frames."
         )
+        if warnings:
+            status += " Recovery: " + "; ".join(warnings) + "."
         return (result, status)
+
+
+class MeetMapOptionalLoraModelLoader:
+    def __init__(self):
+        self.loaded_lora = None
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "preferred_lora": (
+                    "STRING",
+                    {"default": "", "multiline": False},
+                ),
+                "strength_model": (
+                    "FLOAT",
+                    {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.05},
+                ),
+                "enabled": ("BOOLEAN", {"default": True}),
+            },
+            "optional": {
+                "fallback_loras": (
+                    "STRING",
+                    {"default": "", "multiline": True},
+                ),
+            },
+        }
+
+    RETURN_TYPES = ("MODEL", "STRING")
+    RETURN_NAMES = ("model", "status")
+    FUNCTION = "load"
+    CATEGORY = "MeetMap/Runtime"
+    DESCRIPTION = (
+        "Loads a LoRA by string rather than a validating COMBO. If the preferred file "
+        "is missing/corrupt/incompatible it tries fallback names and finally passes the "
+        "original model through instead of invalidating the entire prompt."
+    )
+
+    @staticmethod
+    def _candidate_names(preferred, fallback_loras, available):
+        requested = []
+        for value in [preferred, *(str(fallback_loras or "").replace(",", "\n").splitlines())]:
+            value = str(value or "").strip().replace("\\", "/")
+            if value and value not in requested:
+                requested.append(value)
+
+        exact = {name.lower(): name for name in available}
+        by_base = {}
+        for name in available:
+            by_base.setdefault(name.rsplit("/", 1)[-1].lower(), name)
+
+        resolved = []
+        for value in requested:
+            found = exact.get(value.lower()) or by_base.get(value.rsplit("/", 1)[-1].lower())
+            if found and found not in resolved:
+                resolved.append(found)
+        return requested, resolved
+
+    def load(self, model, preferred_lora, strength_model, enabled, fallback_loras=""):
+        if not bool(enabled) or float(strength_model) == 0.0:
+            return (model, "Optional LoRA disabled; base model passed through.")
+
+        try:
+            import folder_paths
+            import comfy.sd
+            import comfy.utils
+        except Exception as exc:
+            return (model, f"Optional LoRA runtime unavailable; base model used: {exc}")
+
+        available = list(folder_paths.get_filename_list("loras"))
+        requested, candidates = self._candidate_names(preferred_lora, fallback_loras, available)
+        if not candidates:
+            return (
+                model,
+                "Optional LoRA missing; base model used. Requested: "
+                + (", ".join(requested) if requested else "<empty>"),
+            )
+
+        failures = []
+        for name in candidates:
+            try:
+                path = folder_paths.get_full_path_or_raise("loras", name)
+                cache_key = (path, float(strength_model))
+                if self.loaded_lora is not None and self.loaded_lora[0] == cache_key:
+                    lora, metadata = self.loaded_lora[1], self.loaded_lora[2]
+                else:
+                    lora, metadata = comfy.utils.load_torch_file(
+                        path,
+                        safe_load=True,
+                        return_metadata=True,
+                    )
+                    self.loaded_lora = (cache_key, lora, metadata)
+
+                model_lora, _ = comfy.sd.load_lora_for_models(
+                    model,
+                    None,
+                    lora,
+                    float(strength_model),
+                    0,
+                    lora_metadata=metadata,
+                )
+                return (
+                    model_lora,
+                    f"Applied optional LoRA '{name}' at strength {float(strength_model):.2f}.",
+                )
+            except Exception as exc:
+                failures.append(f"{name}: {exc}")
+
+        return (
+            model,
+            "All optional LoRA candidates failed; base model used. " + " | ".join(failures),
+        )
 
 
 class MeetMapReleaseVRAMThenPassAudio:
@@ -194,41 +329,61 @@ class MeetMapReleaseVRAMThenPassAudio:
     FUNCTION = "release"
     CATEGORY = "MeetMap/Runtime"
     DESCRIPTION = (
-        "Execution barrier between visual generation and Seed-VC. It waits for the final "
-        "visual frames, unloads ComfyUI models, runs GC/cache cleanup, then passes audio."
+        "Execution barrier between visual generation and Seed-VC. Cleanup is best-effort "
+        "with multiple fallbacks so a cache-cleanup API change does not kill a completed render."
     )
 
     def release(self, audio, visual_dependency):
-        # The dependency is intentionally unused as data; its presence forces the complete
-        # visual branch to finish before we unload SCAIL/FLUX and start Seed-VC.
         if visual_dependency is None:
-            raise RuntimeError("Visual dependency is missing; refusing early audio execution.")
+            return (audio, "VRAM barrier warning: visual dependency missing; audio passed through.")
 
+        notes = []
         try:
             import comfy.model_management as model_management
-
-            model_management.unload_all_models()
-            gc.collect()
-            model_management.soft_empty_cache()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            status = "Visual models unloaded and GPU cache released before Seed-VC."
         except Exception as exc:
-            # Fail closed: if cleanup itself is broken we do not continue into another
-            # heavyweight model and risk an avoidable OOM/costly failed job.
-            raise RuntimeError(f"VRAM cleanup before Seed-VC failed: {exc}") from exc
+            model_management = None
+            notes.append(f"model_management unavailable: {exc}")
 
-        return (audio, status)
+        if model_management is not None:
+            try:
+                model_management.unload_all_models()
+                notes.append("unload_all_models ok")
+            except Exception as exc:
+                notes.append(f"unload_all_models skipped: {exc}")
+
+        try:
+            gc.collect()
+            notes.append("gc ok")
+        except Exception as exc:
+            notes.append(f"gc skipped: {exc}")
+
+        if model_management is not None:
+            try:
+                model_management.soft_empty_cache()
+                notes.append("soft_empty_cache ok")
+            except Exception as exc:
+                notes.append(f"soft_empty_cache skipped: {exc}")
+
+        if torch.cuda.is_available():
+            try:
+                torch.cuda.empty_cache()
+                notes.append("cuda empty_cache ok")
+            except Exception as exc:
+                notes.append(f"cuda empty_cache skipped: {exc}")
+
+        return (audio, "VRAM cleanup barrier completed. " + "; ".join(notes))
 
 
 NODE_CLASS_MAPPINGS = {
     "MeetMapSCAILLongVideoPlanner": MeetMapSCAILLongVideoPlanner,
     "MeetMapSCAILChunkStitch": MeetMapSCAILChunkStitch,
+    "MeetMapOptionalLoraModelLoader": MeetMapOptionalLoraModelLoader,
     "MeetMapReleaseVRAMThenPassAudio": MeetMapReleaseVRAMThenPassAudio,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "MeetMapSCAILLongVideoPlanner": "MeetMap SCAIL Long Video Planner",
     "MeetMapSCAILChunkStitch": "MeetMap SCAIL Chunk Stitch",
+    "MeetMapOptionalLoraModelLoader": "MeetMap Optional LoRA Model Loader",
     "MeetMapReleaseVRAMThenPassAudio": "MeetMap Release VRAM Then Pass Audio",
 }
