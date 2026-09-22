@@ -210,33 +210,41 @@ class MeetMapGoogleDriveLatestVideo:
         folder_id = _resolve_folder_id(folder_id, "MEETMAP_MOTION_DRIVE_FOLDER_ID")
         service = _drive()
 
-        response = (
-            service.files()
-            .list(
-                q=f"'{folder_id}' in parents and trashed = false",
-                spaces="drive",
-                fields=(
-                    "nextPageToken,files("
-                    "id,name,mimeType,size,modifiedTime,createdTime,appProperties,parents)"
-                ),
-                orderBy="modifiedTime desc",
-                pageSize=100,
-                includeItemsFromAllDrives=True,
-                supportsAllDrives=True,
-            )
-            .execute()
-        )
-        items = response.get("files") or []
         candidates = []
-        for item in items:
-            if not _is_video_candidate(item):
-                continue
-            props = item.get("appProperties") or {}
-            if str(props.get(_PROCESSED_KEY, "")).lower() == "true":
-                continue
-            if _claim_active(props, claim_ttl_minutes):
-                continue
-            candidates.append(item)
+        page_token = None
+        pages_checked = 0
+        while pages_checked < 10 and not candidates:
+            response = (
+                service.files()
+                .list(
+                    q=f"'{folder_id}' in parents and trashed = false",
+                    spaces="drive",
+                    fields=(
+                        "nextPageToken,files("
+                        "id,name,mimeType,size,modifiedTime,createdTime,appProperties,parents)"
+                    ),
+                    orderBy="modifiedTime desc",
+                    pageSize=100,
+                    pageToken=page_token,
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                )
+                .execute()
+            )
+            pages_checked += 1
+            for item in response.get("files") or []:
+                if not _is_video_candidate(item):
+                    continue
+                props = item.get("appProperties") or {}
+                if str(props.get(_PROCESSED_KEY, "")).lower() == "true":
+                    continue
+                if _claim_active(props, claim_ttl_minutes):
+                    continue
+                candidates.append(item)
+                break
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
 
         if not candidates:
             raise RuntimeError(
@@ -368,7 +376,7 @@ class MeetMapGoogleDriveMarkProcessed:
         props = dict(metadata.get("appProperties") or {})
         current_claim = str(props.get(_CLAIM_ID_KEY, "")).strip()
         supplied_claim = str(claim_token or "").strip()
-        if current_claim and supplied_claim and current_claim != supplied_claim:
+        if (current_claim or supplied_claim) and current_claim != supplied_claim:
             raise RuntimeError(
                 "Google Drive claim token mismatch. Refusing to mark another workflow run's file processed."
             )
