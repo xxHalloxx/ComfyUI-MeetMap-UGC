@@ -263,6 +263,9 @@ def optional_target(path):
         "loras/wan2.1_SCAIL_2_DPO_lora_bf16.safetensors",
         "loras/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
         "loras/wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
+        "diffusion_models/flux-2-klein-4b-fp8.safetensors",
+        "text_encoders/qwen_3_4b.safetensors",
+        "vae/flux2-vae.safetensors",
     }
     return rel.startswith("TTS/") or rel in optional_exact
 
@@ -365,6 +368,7 @@ types = {node.get("type") for node in workflow.get("nodes", [])}
 required = {
     "MeetMapGoogleDriveLatestVideoSafe",
     "MeetMapSCAILReferenceBatch",
+    "MeetMapLazyFluxPrimaryFallback",
     "MeetMapSCAILLongVideoPlanner",
     "MeetMapSCAILChunkStitch",
     "MeetMapReleaseVRAMThenPassAudio",
@@ -574,7 +578,8 @@ PY
   echo "[MeetMap SCAIL] Drive source loader is fail-soft: Queue first, then input/meetmap_fallback/source.mp4 if Drive fails."
   echo "[MeetMap SCAIL] Successful sources are moved to sibling folder 'Already posted'."
   echo "[MeetMap SCAIL] Voice recovery: torchaudio -> soundfile -> ffmpeg; Seed-VC retries once then falls back to original audio."
-  echo "[MeetMap SCAIL] Multi-reference: generated primary + face_front + face_angle + upper_body."
+  echo "[MeetMap SCAIL] FLUX first-frame stage is lazy/optional; missing FLUX assets fall back to the exact source frame."
+  echo "[MeetMap SCAIL] Multi-reference: primary + face_front + face_angle + upper_body."
   echo "[MeetMap SCAIL] Long-video mode: native 81-frame chunks with 5-frame overlap."
   echo "[MeetMap SCAIL] Relighting is optional at runtime: preferred LoRA is used when healthy, otherwise base SCAIL continues."
   echo "[MeetMap SCAIL] VRAM policy: unload visual models before Seed-VC."
