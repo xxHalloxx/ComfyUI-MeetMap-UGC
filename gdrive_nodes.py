@@ -544,6 +544,7 @@ class MeetMapGoogleDriveLatestVideo:
             drive_name = _safe_filename(chosen.get("name"))
             size = int(chosen.get("size") or 0)
             claim_token = ""
+            partial = None
 
             if size > max_bytes > 0:
                 skipped.append(
@@ -621,9 +622,8 @@ class MeetMapGoogleDriveLatestVideo:
                 return (video, file_id, claim_token, drive_name, relative, status)
 
             except Exception as exc:
-                partial_path = locals().get("partial")
-                if isinstance(partial_path, Path):
-                    partial_path.unlink(missing_ok=True)
+                if isinstance(partial, Path):
+                    partial.unlink(missing_ok=True)
                 if claim_token:
                     try:
                         _merge_app_properties(
@@ -644,6 +644,109 @@ class MeetMapGoogleDriveLatestVideo:
             "No usable Queue video remained after trying up to 10 candidates. "
             + " | ".join(skipped)
         )
+
+class MeetMapGoogleDriveLatestVideoSafe(MeetMapGoogleDriveLatestVideo):
+    @classmethod
+    def INPUT_TYPES(cls):
+        schema = MeetMapGoogleDriveLatestVideo.INPUT_TYPES()
+        required = dict(schema.get("required") or {})
+        required["fallback_local_video"] = (
+            "STRING",
+            {"default": "meetmap_fallback/source.mp4", "multiline": False},
+        )
+        required["use_local_fallback_on_drive_error"] = (
+            "BOOLEAN",
+            {"default": True},
+        )
+        return {"required": required}
+
+    FUNCTION = "load_safe"
+    DESCRIPTION = (
+        "Drive-first fail-soft video loader. If Drive cannot provide a usable source, an "
+        "explicit local fallback under ComfyUI/input can be used so the render still completes."
+    )
+
+    def load_safe(
+        self,
+        folder_id,
+        required_folder_name,
+        required_parent_folder_name,
+        claim_mode,
+        claim_ttl_minutes,
+        max_file_size_mb,
+        download_subfolder,
+        fallback_local_video,
+        use_local_fallback_on_drive_error,
+    ):
+        try:
+            return super().load(
+                folder_id,
+                required_folder_name,
+                required_parent_folder_name,
+                claim_mode,
+                claim_ttl_minutes,
+                max_file_size_mb,
+                download_subfolder,
+            )
+        except Exception as drive_exc:
+            if not bool(use_local_fallback_on_drive_error):
+                raise
+
+            try:
+                from comfy_api.latest import InputImpl
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Drive source failed ({drive_exc}) and ComfyUI local video API is unavailable ({exc})."
+                ) from exc
+
+            input_root = Path(folder_paths.get_input_directory()).resolve()
+            rel = str(fallback_local_video or "").strip().replace("\\", "/").lstrip("/")
+            if not rel:
+                raise RuntimeError(
+                    f"Drive source failed ({drive_exc}); local fallback path is empty."
+                ) from drive_exc
+
+            fallback = (input_root / rel).resolve()
+            try:
+                fallback.relative_to(input_root)
+            except ValueError as exc:
+                raise RuntimeError("Local fallback video must stay inside ComfyUI/input.") from exc
+
+            if not fallback.is_file() or fallback.stat().st_size <= 0:
+                raise RuntimeError(
+                    f"Drive source failed ({drive_exc}); local fallback does not exist: {fallback}"
+                ) from drive_exc
+
+            normalized, normalize_status = _normalize_video_for_comfy(fallback)
+            try:
+                video = InputImpl.VideoFromFile(str(normalized))
+                width, height = video.get_dimensions()
+            except Exception:
+                normalized, normalize_status = _normalize_video_for_comfy(fallback, force=True)
+                video = InputImpl.VideoFromFile(str(normalized))
+                width, height = video.get_dimensions()
+
+            if int(width) <= 0 or int(height) <= 0:
+                raise RuntimeError(
+                    f"Local fallback video decoded with invalid dimensions {width}x{height}."
+                )
+
+            relative = normalized.relative_to(input_root).as_posix()
+            status = (
+                "WARNING: Google Drive source unavailable; local emergency input used instead. "
+                f"fallback={relative}; decoded={width}x{height}; {normalize_status}; "
+                f"Drive error={type(drive_exc).__name__}: {drive_exc}"
+            )
+            print("[MeetMap Drive] " + status)
+            return (
+                video,
+                "",
+                "",
+                fallback.name,
+                relative,
+                status,
+            )
+
 
 
 class MeetMapGoogleDriveMarkProcessed:
@@ -844,12 +947,14 @@ class MeetMapGoogleDriveFinalizeSafe(MeetMapGoogleDriveMarkProcessed):
 
 NODE_CLASS_MAPPINGS = {
     "MeetMapGoogleDriveLatestVideo": MeetMapGoogleDriveLatestVideo,
+    "MeetMapGoogleDriveLatestVideoSafe": MeetMapGoogleDriveLatestVideoSafe,
     "MeetMapGoogleDriveMarkProcessed": MeetMapGoogleDriveMarkProcessed,
     "MeetMapGoogleDriveFinalizeSafe": MeetMapGoogleDriveFinalizeSafe,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "MeetMapGoogleDriveLatestVideo": "MeetMap Google Drive Latest Video",
+    "MeetMapGoogleDriveLatestVideoSafe": "MeetMap Google Drive Latest Video Safe",
     "MeetMapGoogleDriveMarkProcessed": "MeetMap Google Drive Mark Processed",
     "MeetMapGoogleDriveFinalizeSafe": "MeetMap Google Drive Finalize Safe",
 }
