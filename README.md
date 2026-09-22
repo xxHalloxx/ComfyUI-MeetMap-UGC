@@ -175,8 +175,8 @@ Recommended workflow:
 This version is built around the intended production flow:
 
 ```text
-Google Drive reference-video folder
-  -> newest unprocessed video
+Google Drive / MeetMap TikTok Content / Queue
+  -> newest unprocessed video only
   -> claim/lease source file
   -> decode frames + original audio
   -> exact person crop
@@ -199,6 +199,7 @@ V3 deliberately does **not** use the raw first frame as the SCAIL reference imag
 
 `MeetMapGoogleDriveLatestVideo`:
 - checks the configured Drive folder at every workflow run;
+- verifies that the folder is named `Queue` and its direct parent is named `MeetMap TikTok Content`;
 - selects the newest video that is not marked `meetmap_processed=true`;
 - skips files with an active claim from another render;
 - claims the chosen file for a configurable lease period (default 180 minutes);
@@ -217,13 +218,15 @@ Set these as RunPod environment variables / secrets:
 
 ```text
 GOOGLE_SERVICE_ACCOUNT_JSON=<full service account JSON>
-MEETMAP_MOTION_DRIVE_FOLDER_ID=<Drive folder id>
+MEETMAP_MOTION_DRIVE_FOLDER_ID=<folder id of MeetMap TikTok Content/Queue>
+MEETMAP_MOTION_EXPECTED_FOLDER_NAME=Queue
+MEETMAP_MOTION_EXPECTED_PARENT_FOLDER_NAME=MeetMap TikTok Content
 MEETMAP_MOTION_PROCESSED_FOLDER_ID=<optional processed folder id>
 ```
 
 Alternatively set `GOOGLE_SERVICE_ACCOUNT_FILE` to a mounted credential JSON path.
 
-Share the source Drive folder with the service-account email as **Editor**. Editor access is required for the default claim/processed queue behavior.
+Share the **MeetMap TikTok Content → Queue** path with the service-account email as **Editor**. The V3 loader fails closed if the configured folder is not `Queue` directly under `MeetMap TikTok Content`. Editor access is required for claim/processed metadata.
 
 A safe variable-name template is included at:
 
