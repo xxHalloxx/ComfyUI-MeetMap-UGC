@@ -129,6 +129,68 @@ def _validate_folder_target(service, folder_id, required_folder_name="", require
     return metadata
 
 
+def _find_sibling_folder(service, source_folder_id, sibling_name, required_parent_folder_name=""):
+    """Resolve a sibling folder next to source_folder_id under the same parent."""
+    source = (
+        service.files()
+        .get(
+            fileId=source_folder_id,
+            fields="id,name,mimeType,parents",
+            supportsAllDrives=True,
+        )
+        .execute()
+    )
+    if source.get("mimeType") != "application/vnd.google-apps.folder":
+        raise RuntimeError("Source parent is not a Google Drive folder.")
+
+    parent_ids = [str(value) for value in (source.get("parents") or []) if str(value).strip()]
+    if len(parent_ids) != 1:
+        raise RuntimeError(
+            f"Expected Queue to have exactly one parent, got {len(parent_ids)}."
+        )
+    root_parent_id = parent_ids[0]
+    root_parent = (
+        service.files()
+        .get(
+            fileId=root_parent_id,
+            fields="id,name,mimeType",
+            supportsAllDrives=True,
+        )
+        .execute()
+    )
+    expected_parent_name = str(required_parent_folder_name or "").strip()
+    if expected_parent_name and str(root_parent.get("name") or "").strip() != expected_parent_name:
+        raise RuntimeError(
+            f"Refusing processed-folder lookup. Expected parent '{expected_parent_name}', "
+            f"got '{root_parent.get('name')}'."
+        )
+
+    escaped_name = str(sibling_name or "").replace("\\", "\\\\").replace("'", "\\'")
+    response = (
+        service.files()
+        .list(
+            q=(
+                f"'{root_parent_id}' in parents and trashed = false and "
+                "mimeType = 'application/vnd.google-apps.folder' and "
+                f"name = '{escaped_name}'"
+            ),
+            spaces="drive",
+            fields="files(id,name,mimeType,parents)",
+            pageSize=10,
+            includeItemsFromAllDrives=True,
+            supportsAllDrives=True,
+        )
+        .execute()
+    )
+    matches = response.get("files") or []
+    if len(matches) != 1:
+        raise RuntimeError(
+            f"Expected exactly one sibling folder named '{sibling_name}' under "
+            f"'{root_parent.get('name')}', found {len(matches)}."
+        )
+    return matches[0]
+
+
 def _safe_filename(name):
     cleaned = Path(str(name or "reference_video.mp4")).name
     cleaned = re.sub(r"[^A-Za-z0-9._ -]+", "_", cleaned).strip(" .")
@@ -418,6 +480,26 @@ class MeetMapGoogleDriveMarkProcessed:
                         "multiline": False,
                     },
                 ),
+                "processed_folder_name": (
+                    "STRING",
+                    {
+                        "default": os.environ.get(
+                            "MEETMAP_MOTION_PROCESSED_FOLDER_NAME",
+                            "Already posted",
+                        ),
+                        "multiline": False,
+                    },
+                ),
+                "required_parent_folder_name": (
+                    "STRING",
+                    {
+                        "default": os.environ.get(
+                            "MEETMAP_MOTION_EXPECTED_PARENT_FOLDER_NAME",
+                            "MeetMap TikTok Content",
+                        ),
+                        "multiline": False,
+                    },
+                ),
             }
         }
 
@@ -427,12 +509,21 @@ class MeetMapGoogleDriveMarkProcessed:
     OUTPUT_NODE = True
     CATEGORY = "MeetMap/Automation"
     DESCRIPTION = (
-        "Runs after the final SaveVideo node. Marks the source Drive video processed and can "
-        "optionally move it into a processed folder. The claim token prevents another run from "
-        "finalizing a file it did not claim."
+        "Runs after the final SaveVideo node. Marks the source Drive video processed and moves "
+        "it from Queue into the sibling 'Already posted' folder by default. The claim token "
+        "prevents another run from finalizing a file it did not claim."
     )
 
-    def mark(self, video, file_id, claim_token, mark_processed, processed_folder_id):
+    def mark(
+        self,
+        video,
+        file_id,
+        claim_token,
+        mark_processed,
+        processed_folder_id,
+        processed_folder_name,
+        required_parent_folder_name,
+    ):
         if not bool(mark_processed):
             return (video, "Drive source left unchanged (mark_processed=false).")
 
@@ -470,13 +561,28 @@ class MeetMapGoogleDriveMarkProcessed:
         )
 
         move_target = str(processed_folder_id or "").strip()
+        source_parents = [str(value) for value in (metadata.get("parents") or []) if str(value).strip()]
+        if not move_target:
+            sibling_name = str(processed_folder_name or "").strip()
+            if sibling_name:
+                if len(source_parents) != 1:
+                    raise RuntimeError(
+                        f"Expected processed source to have exactly one Queue parent, got {len(source_parents)}."
+                    )
+                sibling = _find_sibling_folder(
+                    service,
+                    source_parents[0],
+                    sibling_name,
+                    required_parent_folder_name=required_parent_folder_name,
+                )
+                move_target = str(sibling["id"])
+
         if move_target:
             move_target = _resolve_folder_id(
                 move_target,
                 "MEETMAP_MOTION_PROCESSED_FOLDER_ID",
             )
-            parents = metadata.get("parents") or []
-            remove = ",".join(parents)
+            remove = ",".join(source_parents)
             kwargs = {
                 "fileId": file_id,
                 "addParents": move_target,
@@ -486,9 +592,12 @@ class MeetMapGoogleDriveMarkProcessed:
             if remove:
                 kwargs["removeParents"] = remove
             service.files().update(**kwargs).execute()
-            status = f"Drive source marked processed and moved to folder {move_target}."
+            status = (
+                f"Drive source marked processed and moved to "
+                f"'{str(processed_folder_name or 'processed')}' ({move_target})."
+            )
         else:
-            status = "Drive source marked processed."
+            status = "Drive source marked processed but no processed folder was configured."
 
         return (video, status)
 
