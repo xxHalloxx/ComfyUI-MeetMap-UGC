@@ -391,6 +391,7 @@ class MeetMapStatusCollector:
                 "voice_conversion": ("STRING", {"forceInput": True}),
                 "save": ("STRING", {"forceInput": True}),
                 "drive_finalize": ("STRING", {"forceInput": True}),
+                "source_audio": ("STRING", {"forceInput": True}),
             }
         }
 
@@ -411,6 +412,7 @@ class MeetMapStatusCollector:
         voice_conversion,
         save,
         drive_finalize,
+        source_audio,
     ):
         items = [
             ("drive", drive),
@@ -422,6 +424,7 @@ class MeetMapStatusCollector:
             ("voice_conversion", voice_conversion),
             ("save", save),
             ("drive_finalize", drive_finalize),
+            ("source_audio", source_audio),
         ]
 
         warning_terms = (
