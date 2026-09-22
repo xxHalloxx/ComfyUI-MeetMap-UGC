@@ -1,8 +1,8 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 3,
-  "last_node_id": 37,
-  "last_link_id": 62,
+  "revision": 4,
+  "last_node_id": 45,
+  "last_link_id": 78,
   "nodes": [
     {
       "id": 1,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "# MeetMap Automated Character + Voice Swap · V4\n\nThis workflow is hard-bound to:\n\n**Google Drive → MeetMap TikTok Content → Queue**\n\nFor every new source video it now replaces **both the visible character and the speaking voice**.\n\nFlow:\n**Queue → claim newest new video → visual character swap → trim source audio → load fixed creator_01 voice reference → Seed-VC voice conversion → mux creator voice into final video → SaveVideo → move source to Already posted → mark processed.**\n\n### Voice identity rule\nThe target voice is always loaded from:\n`ComfyUI/input/meetmap_refs/creator_01/voice/reference.wav`\n\nSeed-VC preserves the source speech content and timing while converting its vocal identity toward this fixed reference. The same reference is reused for every video, which keeps the creator voice consistent.\n\nIf the voice reference is missing or Seed-VC fails, the final SaveVideo dependency cannot complete; therefore the Drive source is not moved to Already posted and is not marked processed.\n\n### Current audio mode\nV4 uses direct voice conversion on the trimmed source audio. Speech/background separation is intentionally left for a later V5 so this version remains simple and testable.\n\n### Queue safety\nOnly new unprocessed/unclaimed Queue videos are consumed. Successful sources are moved to **Already posted** only after the complete final video has been saved.\n\nBase SCAIL mode remains capped at 81 frames."
+        "# MeetMap Automated Character + Voice Swap · V5\n\n**Source:** Google Drive → MeetMap TikTok Content → Queue\n\nV5 upgrades:\n- Native SCAIL-2 multi-reference: generated primary frame + face_front + face_angle + upper_body.\n- Official SCAIL-2 Relighting LoRA in replacement mode at strength 1.0.\n- Automatic long-video segmentation: 81-frame chunks, 5-frame overlap, 76-frame stride, deterministic overlap removal after rendering.\n- Full source processing up to 2401 frames; no longer hard-capped to one 81-frame segment.\n- Visual models are forcibly unloaded before Seed-VC starts, reducing peak VRAM.\n- Fixed creator_01 Seed-VC voice remains unchanged.\n- Drive finalization still runs only after the complete final SaveVideo succeeds.\n\nIf any visual chunk, stitch, VRAM barrier, Seed-VC, mux or SaveVideo step fails, the Drive source remains retryable and is not moved to Already posted."
       ],
       "title": "README · AUTOMATIC DRIVE → START FRAME → SCAIL"
     },
@@ -330,7 +330,8 @@
           "type": "INT",
           "links": [
             5,
-            31
+            67,
+            72
           ]
         },
         {
@@ -374,10 +375,10 @@
         0,
         512,
         960,
-        81,
+        2401,
         32
       ],
-      "title": "2 · EXACT CROP + SAFE FRAME PLAN"
+      "title": "2 · EXACT CROP + FULL-LENGTH PLAN"
     },
     {
       "id": 5,
@@ -700,7 +701,8 @@
           "name": "references",
           "type": "MEETMAP_REFERENCE_SET",
           "links": [
-            18
+            18,
+            64
           ]
         },
         {
@@ -1023,7 +1025,7 @@
           "type": "IMAGE",
           "links": [
             25,
-            27
+            63
           ]
         }
       ],
@@ -1163,7 +1165,7 @@
           "localized_name": "images",
           "name": "images",
           "type": "IMAGE",
-          "link": 27
+          "link": 65
         },
         {
           "label": "prompt",
@@ -1175,13 +1177,14 @@
           "link": 28
         },
         {
-          "label": "segment_index",
-          "name": "value",
+          "label": "start_frame",
+          "name": "start_frame",
           "type": "INT",
           "widget": {
-            "name": "value"
+            "name": "start_frame"
           },
-          "link": null
+          "link": 68,
+          "localized_name": "start_frame"
         },
         {
           "label": "replace_mode",
@@ -1217,7 +1220,7 @@
           "widget": {
             "name": "length"
           },
-          "link": 31
+          "link": 69
         },
         {
           "name": "previous_frame_count",
@@ -1345,6 +1348,24 @@
             "name": "noise_seed"
           },
           "link": null
+        },
+        {
+          "label": "relighting_lora",
+          "name": "lora_name_2",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_2"
+          },
+          "link": null
+        },
+        {
+          "label": "relighting_strength",
+          "name": "relighting_strength",
+          "type": "FLOAT",
+          "widget": {
+            "name": "relighting_strength"
+          },
+          "link": null
         }
       ],
       "outputs": [
@@ -1354,7 +1375,7 @@
           "type": "IMAGE",
           "links": [
             32,
-            45
+            71
           ]
         }
       ],
@@ -1376,7 +1397,7 @@
       },
       "widgets_values": [
         "",
-        1,
+        0,
         true,
         512,
         960,
@@ -1395,11 +1416,12 @@
         "human",
         "human",
         "sam3.1_multiplex_fp16.safetensors",
-        42
+        42,
+        "scail2_relighting_lora_bf16.safetensors",
+        1
       ],
       "widgets_values_named": {
         "text": "",
-        "value": 1,
         "value_2": true,
         "value_3": 512,
         "value_4": 960,
@@ -1418,9 +1440,12 @@
         "text_1": "human",
         "text_2": "human",
         "ckpt_name": "sam3.1_multiplex_fp16.safetensors",
-        "noise_seed": 42
+        "noise_seed": 42,
+        "start_frame": 0,
+        "lora_name_2": "scail2_relighting_lora_bf16.safetensors",
+        "relighting_strength": 1
       },
-      "title": "8 · SCAIL-2 REPLACEMENT · INT8 + DPO"
+      "title": "8 · SCAIL-2 · MULTI-REF + RELIGHT + AUTO CHUNKS"
     },
     {
       "id": 21,
@@ -1664,7 +1689,7 @@
         {
           "name": "source",
           "type": "IMAGE",
-          "link": 45
+          "link": 73
         },
         {
           "name": "x",
@@ -1703,7 +1728,8 @@
           "type": "IMAGE",
           "links": [
             46,
-            48
+            48,
+            76
           ]
         }
       ],
@@ -1845,7 +1871,7 @@
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
-            59
+            75
           ]
         }
       ],
@@ -2035,7 +2061,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "## V4 automation rules\n\n**Source:** MeetMap TikTok Content → Queue only.\n\n**Visual identity:** FLUX.2 regenerates the first cropped frame with creator_01 identity, then SCAIL-2 carries the replacement through the motion.\n\n**Voice identity:** source audio is trimmed to the generated video duration and sent to Seed-VC. The fixed target voice is `meetmap_refs/creator_01/voice/reference.wav`. Settings: 30 diffusion steps, speed 1.0, CFG 0.7, speech mode (F0 conditioning off), pitch shift 0, unload model after conversion.\n\n**Failure behavior:** missing reference.wav, Seed-VC failure, mux failure or SaveVideo failure prevents Drive finalization.\n\n**Finalization:** after SaveVideo succeeds, move the source from Queue to **Already posted**, then mark it processed and clear the claim.\n\n**V1 audio limitation:** the complete trimmed audio track is currently passed to Seed-VC. Add vocal/background separation in a later version for clips with strong music or ambience."
+        "## V5 automation rules\n\n**Multi-reference:** SCAIL receives the generated character-swapped start frame as primary reference plus face_front.png, face_angle.png and upper_body.png as additional views.\n\n**Relighting:** the official zai-org/SCAIL-2 relighting LoRA is converted to ComfyUI safetensors during installation and applied after DPO, before optional LightX2V distillation.\n\n**Long videos:** the complete requested source is normalized to 4n+1 and split automatically into 81-frame segments with 5-frame overlap. Each segment uses the corresponding source-motion window; the repeated overlap is dropped during final stitch. A hard max of 32 segments prevents unexpectedly expensive jobs.\n\n**VRAM:** the audio branch waits on the fully composited visual output. ComfyUI unloads visual models and clears caches before Seed-VC is allowed to load.\n\n**Finalization:** only after final SaveVideo succeeds is the Drive source moved from Queue to Already posted and marked processed."
       ],
       "title": "NOTES · V3 AUTOMATION"
     },
@@ -2223,7 +2249,7 @@
         {
           "name": "source_audio",
           "type": "AUDIO",
-          "link": 59
+          "link": 77
         },
         {
           "name": "ref_audio",
@@ -2306,7 +2332,7 @@
         0,
         true
       ],
-      "title": "12 · SEED-VC · CONVERT TO CREATOR_01 VOICE"
+      "title": "12 · SEED-VC · AFTER VISUAL VRAM RELEASE"
     },
     {
       "id": 37,
@@ -2339,6 +2365,382 @@
       "properties": {},
       "widgets_values": [],
       "title": "CREATOR VOICE REFERENCE STATUS"
+    },
+    {
+      "id": 38,
+      "type": "MeetMapSCAILReferenceBatch",
+      "pos": [
+        1350,
+        1210
+      ],
+      "size": [
+        460,
+        300
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "primary_image",
+          "type": "IMAGE",
+          "link": 63
+        },
+        {
+          "name": "references",
+          "type": "MEETMAP_REFERENCE_SET",
+          "link": 64
+        },
+        {
+          "name": "priority_filenames",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "priority_filenames"
+          }
+        },
+        {
+          "name": "max_additional_references",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "max_additional_references"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image_batch",
+          "type": "IMAGE",
+          "links": [
+            65
+          ]
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            66
+          ]
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "face_front.png\\nface_angle.png\\nupper_body.png",
+        3
+      ],
+      "title": "7A · SCAIL MULTI-REFERENCE · PRIMARY + 3 VIEWS"
+    },
+    {
+      "id": 39,
+      "type": "PreviewAny",
+      "pos": [
+        1350,
+        1530
+      ],
+      "size": [
+        460,
+        110
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 66
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "SCAIL MULTI-REFERENCE STATUS"
+    },
+    {
+      "id": 40,
+      "type": "MeetMapSCAILLongVideoPlanner",
+      "pos": [
+        1350,
+        720
+      ],
+      "size": [
+        460,
+        300
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "total_frames",
+          "type": "INT",
+          "link": 67
+        },
+        {
+          "name": "chunk_size",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "chunk_size"
+          }
+        },
+        {
+          "name": "overlap_frames",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "overlap_frames"
+          }
+        },
+        {
+          "name": "max_segments",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "max_segments"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "start_frame",
+          "type": "INT",
+          "links": [
+            68
+          ]
+        },
+        {
+          "name": "chunk_length",
+          "type": "INT",
+          "links": [
+            69
+          ]
+        },
+        {
+          "name": "segment_index",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            70
+          ]
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        81,
+        5,
+        32
+      ],
+      "title": "7B · AUTO LONG-VIDEO PLAN · 81/5"
+    },
+    {
+      "id": 43,
+      "type": "PreviewAny",
+      "pos": [
+        1350,
+        1030
+      ],
+      "size": [
+        460,
+        110
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 70
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "LONG-VIDEO CHUNK PLAN"
+    },
+    {
+      "id": 41,
+      "type": "MeetMapSCAILChunkStitch",
+      "pos": [
+        2500,
+        820
+      ],
+      "size": [
+        470,
+        260
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "chunks",
+          "type": "IMAGE",
+          "link": 71
+        },
+        {
+          "name": "overlap_frames",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "overlap_frames"
+          }
+        },
+        {
+          "name": "target_frame_count",
+          "type": "INT",
+          "link": 72
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            73
+          ]
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            74
+          ]
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        5
+      ],
+      "title": "9 · STITCH SCAIL CHUNKS · DROP 5-FRAME OVERLAP"
+    },
+    {
+      "id": 44,
+      "type": "PreviewAny",
+      "pos": [
+        2500,
+        1090
+      ],
+      "size": [
+        470,
+        110
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 74
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "SCAIL CHUNK STITCH STATUS"
+    },
+    {
+      "id": 42,
+      "type": "MeetMapReleaseVRAMThenPassAudio",
+      "pos": [
+        3820,
+        1250
+      ],
+      "size": [
+        500,
+        230
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 75
+        },
+        {
+          "name": "visual_dependency",
+          "type": "IMAGE",
+          "link": 76
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            77
+          ]
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            78
+          ]
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "11 · UNLOAD FLUX/SCAIL + RELEASE VRAM"
+    },
+    {
+      "id": 45,
+      "type": "PreviewAny",
+      "pos": [
+        3820,
+        1490
+      ],
+      "size": [
+        500,
+        110
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 78
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "VRAM CLEANUP STATUS"
     }
   ],
   "links": [
@@ -2551,14 +2953,6 @@
       "VIDEO"
     ],
     [
-      27,
-      16,
-      0,
-      20,
-      1,
-      "IMAGE"
-    ],
-    [
       28,
       12,
       0,
@@ -2580,14 +2974,6 @@
       3,
       20,
       6,
-      "INT"
-    ],
-    [
-      31,
-      4,
-      4,
-      20,
-      7,
       "INT"
     ],
     [
@@ -2695,14 +3081,6 @@
       "MASK"
     ],
     [
-      45,
-      20,
-      0,
-      25,
-      1,
-      "IMAGE"
-    ],
-    [
       46,
       25,
       0,
@@ -2799,14 +3177,6 @@
       "STRING"
     ],
     [
-      59,
-      28,
-      0,
-      36,
-      0,
-      "AUDIO"
-    ],
-    [
       60,
       35,
       0,
@@ -2827,6 +3197,134 @@
       35,
       1,
       37,
+      0,
+      "STRING"
+    ],
+    [
+      63,
+      16,
+      0,
+      38,
+      0,
+      "IMAGE"
+    ],
+    [
+      64,
+      10,
+      0,
+      38,
+      1,
+      "MEETMAP_REFERENCE_SET"
+    ],
+    [
+      65,
+      38,
+      0,
+      20,
+      1,
+      "IMAGE"
+    ],
+    [
+      66,
+      38,
+      1,
+      39,
+      0,
+      "STRING"
+    ],
+    [
+      67,
+      4,
+      4,
+      40,
+      0,
+      "INT"
+    ],
+    [
+      68,
+      40,
+      0,
+      20,
+      3,
+      "INT"
+    ],
+    [
+      69,
+      40,
+      1,
+      20,
+      7,
+      "INT"
+    ],
+    [
+      70,
+      40,
+      3,
+      43,
+      0,
+      "STRING"
+    ],
+    [
+      71,
+      20,
+      0,
+      41,
+      0,
+      "IMAGE"
+    ],
+    [
+      72,
+      4,
+      4,
+      41,
+      2,
+      "INT"
+    ],
+    [
+      73,
+      41,
+      0,
+      25,
+      1,
+      "IMAGE"
+    ],
+    [
+      74,
+      41,
+      1,
+      44,
+      0,
+      "STRING"
+    ],
+    [
+      75,
+      28,
+      0,
+      42,
+      0,
+      "AUDIO"
+    ],
+    [
+      76,
+      25,
+      0,
+      42,
+      1,
+      "IMAGE"
+    ],
+    [
+      77,
+      42,
+      0,
+      36,
+      0,
+      "AUDIO"
+    ],
+    [
+      78,
+      42,
+      1,
+      45,
       0,
       "STRING"
     ]
@@ -2894,7 +3392,7 @@
         },
         "revision": 0,
         "config": {},
-        "name": "Character Replacement (SCAIL-2 Int8 Base)",
+        "name": "Character Replacement (SCAIL-2 Multi-Ref + Relight + Chunked)",
         "inputNode": {
           "id": -10,
           "bounding": [
@@ -2959,12 +3457,12 @@
           },
           {
             "id": "861ea850-8329-491b-9413-2588cdd77bbd",
-            "name": "value",
+            "name": "start_frame",
             "type": "INT",
             "linkIds": [
               502
             ],
-            "label": "segment_index",
+            "label": "start_frame",
             "pos": [
               -290.984375,
               4274
@@ -3014,8 +3512,7 @@
             "name": "length",
             "type": "INT",
             "linkIds": [
-              522,
-              541
+              522
             ],
             "label": "frame_count",
             "pos": [
@@ -3028,8 +3525,7 @@
             "name": "previous_frame_count",
             "type": "INT",
             "linkIds": [
-              542,
-              543
+              542
             ],
             "pos": [
               -290.984375,
@@ -3210,6 +3706,32 @@
               -290.984375,
               4654
             ]
+          },
+          {
+            "id": "0f4f9ef9-5794-4b15-a744-38f76b70a241",
+            "name": "lora_name_2",
+            "type": "COMBO",
+            "linkIds": [
+              567
+            ],
+            "label": "relighting_lora",
+            "pos": [
+              -290.984375,
+              4674
+            ]
+          },
+          {
+            "id": "22b40655-a756-4d4e-ac0d-b3555087030f",
+            "name": "relighting_strength",
+            "type": "FLOAT",
+            "linkIds": [
+              568
+            ],
+            "label": "relighting_strength",
+            "pos": [
+              -290.984375,
+              4694
+            ]
           }
         ],
         "outputs": [
@@ -3334,8 +3856,8 @@
                 "name": "VAE",
                 "type": "VAE",
                 "links": [
-                  406,
-                  407
+                  407,
+                  406
                 ]
               }
             ],
@@ -3431,9 +3953,9 @@
                 "name": "resized",
                 "type": "*",
                 "links": [
-                  420,
                   492,
-                  493
+                  493,
+                  420
                 ]
               }
             ],
@@ -3494,7 +4016,7 @@
                 "localized_name": "audio",
                 "name": "audio",
                 "type": "AUDIO",
-                "links": null
+                "links": []
               },
               {
                 "localized_name": "fps",
@@ -3506,13 +4028,13 @@
                 "localized_name": "bit_depth",
                 "name": "bit_depth",
                 "type": "COMBO",
-                "links": null
+                "links": []
               },
               {
                 "localized_name": "color_space",
                 "name": "color_space",
                 "type": "COMBO",
-                "links": null
+                "links": []
               }
             ],
             "properties": {
@@ -3625,8 +4147,8 @@
                 "name": "CLIP",
                 "type": "CLIP",
                 "links": [
-                  7,
-                  8
+                  8,
+                  7
                 ]
               }
             ],
@@ -4666,7 +5188,7 @@
                 "localized_name": "BOOL",
                 "name": "BOOL",
                 "type": "BOOLEAN",
-                "links": null
+                "links": []
               }
             ],
             "properties": {
@@ -4741,7 +5263,7 @@
                 "localized_name": "BOOL",
                 "name": "BOOL",
                 "type": "BOOLEAN",
-                "links": null
+                "links": []
               }
             ],
             "properties": {
@@ -4787,112 +5309,23 @@
                 "name": "INT",
                 "type": "INT",
                 "links": [
-                  447
+                  450
                 ]
               }
             ],
-            "title": "Int (segment index)",
+            "title": "Int (start frame)",
             "properties": {
               "Node name for S&R": "PrimitiveInt",
               "cnr_id": "comfy-core",
               "ver": "0.24.0"
             },
             "widgets_values": [
-              1,
+              0,
               "fixed"
             ],
             "widgets_values_named": {
-              "value": 1,
+              "value": 0,
               "fixed": "fixed"
-            }
-          },
-          {
-            "id": 347,
-            "type": "ComfyMathExpression",
-            "pos": [
-              590,
-              4490
-            ],
-            "size": [
-              230,
-              220
-            ],
-            "flags": {
-              "collapsed": false
-            },
-            "order": 25,
-            "mode": 0,
-            "inputs": [
-              {
-                "label": "a",
-                "localized_name": "a",
-                "name": "values.a",
-                "type": "FLOAT,INT,BOOLEAN",
-                "link": 447
-              },
-              {
-                "localized_name": "b",
-                "name": "values.b",
-                "shape": 7,
-                "type": "FLOAT,INT,BOOLEAN",
-                "link": 541
-              },
-              {
-                "localized_name": "c",
-                "name": "values.c",
-                "shape": 7,
-                "type": "FLOAT,INT,BOOLEAN",
-                "link": 543
-              },
-              {
-                "localized_name": "d",
-                "name": "values.d",
-                "shape": 7,
-                "type": "FLOAT,INT,BOOLEAN",
-                "link": null
-              },
-              {
-                "localized_name": "expression",
-                "name": "expression",
-                "type": "STRING",
-                "widget": {
-                  "name": "expression"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "FLOAT",
-                "name": "FLOAT",
-                "type": "FLOAT",
-                "links": null
-              },
-              {
-                "localized_name": "INT",
-                "name": "INT",
-                "type": "INT",
-                "links": [
-                  450
-                ]
-              },
-              {
-                "localized_name": "BOOL",
-                "name": "BOOL",
-                "type": "BOOLEAN",
-                "links": null
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "ComfyMathExpression",
-              "cnr_id": "comfy-core",
-              "ver": "0.24.0"
-            },
-            "widgets_values": [
-              "(b - c) * (a - 1)"
-            ],
-            "widgets_values_named": {
-              "expression": "(b - c) * (a - 1)"
             }
           },
           {
@@ -5353,8 +5786,8 @@
                 "name": "BOOLEAN",
                 "type": "BOOLEAN",
                 "links": [
-                  475,
-                  476
+                  476,
+                  475
                 ]
               }
             ],
@@ -5398,7 +5831,7 @@
                 "localized_name": "images",
                 "name": "images",
                 "type": "IMAGE",
-                "links": null
+                "links": []
               }
             ],
             "properties": {
@@ -5434,7 +5867,7 @@
                 "localized_name": "images",
                 "name": "images",
                 "type": "IMAGE",
-                "links": null
+                "links": []
               }
             ],
             "properties": {
@@ -6047,8 +6480,7 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  563,
-                  564
+                  566
                 ]
               }
             ],
@@ -6072,6 +6504,72 @@
               "lora_name": "wan2.1_SCAIL_2_DPO_lora_bf16.safetensors",
               "strength_model": 1
             }
+          },
+          {
+            "id": 364,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              670,
+              3390
+            ],
+            "size": [
+              330,
+              130
+            ],
+            "flags": {},
+            "order": 42,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "model",
+                "name": "model",
+                "type": "MODEL",
+                "link": 566
+              },
+              {
+                "localized_name": "lora_name",
+                "name": "lora_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "lora_name"
+                },
+                "link": 567
+              },
+              {
+                "localized_name": "strength_model",
+                "name": "strength_model",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "strength_model"
+                },
+                "link": 568
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  563,
+                  564
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "cnr_id": "comfy-core",
+              "ver": "0.24.0"
+            },
+            "widgets_values": [
+              "scail2_relighting_lora_bf16.safetensors",
+              1
+            ],
+            "widgets_values_named": {
+              "lora_name": "scail2_relighting_lora_bf16.safetensors",
+              "strength_model": 1
+            },
+            "title": "Official SCAIL-2 Relighting LoRA"
           }
         ],
         "groups": [
@@ -6391,8 +6889,8 @@
           },
           {
             "id": 450,
-            "origin_id": 347,
-            "origin_slot": 1,
+            "origin_id": 346,
+            "origin_slot": 0,
             "target_id": 341,
             "target_slot": 1,
             "type": "INT"
@@ -6410,14 +6908,6 @@
             "origin_id": 343,
             "origin_slot": 0,
             "target_id": 345,
-            "target_slot": 0,
-            "type": "INT"
-          },
-          {
-            "id": 447,
-            "origin_id": 346,
-            "origin_slot": 0,
-            "target_id": 347,
             "target_slot": 0,
             "type": "INT"
           },
@@ -6798,28 +7288,12 @@
             "type": "INT"
           },
           {
-            "id": 541,
-            "origin_id": -10,
-            "origin_slot": 7,
-            "target_id": 347,
-            "target_slot": 1,
-            "type": "FLOAT,INT,BOOLEAN"
-          },
-          {
             "id": 542,
             "origin_id": -10,
             "origin_slot": 8,
             "target_id": 361,
             "target_slot": 17,
             "type": "INT"
-          },
-          {
-            "id": 543,
-            "origin_id": -10,
-            "origin_slot": 8,
-            "target_id": 347,
-            "target_slot": 2,
-            "type": "FLOAT,INT,BOOLEAN"
           },
           {
             "id": 544,
@@ -6871,7 +7345,7 @@
           },
           {
             "id": 563,
-            "origin_id": 363,
+            "origin_id": 364,
             "origin_slot": 0,
             "target_id": 322,
             "target_slot": 0,
@@ -6879,7 +7353,7 @@
           },
           {
             "id": 564,
-            "origin_id": 363,
+            "origin_id": 364,
             "origin_slot": 0,
             "target_id": 338,
             "target_slot": 0,
@@ -6892,6 +7366,30 @@
             "target_id": 363,
             "target_slot": 1,
             "type": "COMBO"
+          },
+          {
+            "id": 566,
+            "origin_id": 363,
+            "origin_slot": 0,
+            "target_id": 364,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 567,
+            "origin_id": -10,
+            "origin_slot": 23,
+            "target_id": 364,
+            "target_slot": 1,
+            "type": "COMBO"
+          },
+          {
+            "id": 568,
+            "origin_id": -10,
+            "origin_slot": 24,
+            "target_id": 364,
+            "target_slot": 2,
+            "type": "FLOAT"
           }
         ],
         "extra": {},
@@ -8503,6 +9001,38 @@
         [
           36,
           "unload_model"
+        ],
+        [
+          38,
+          "priority_filenames"
+        ],
+        [
+          38,
+          "max_additional_references"
+        ],
+        [
+          40,
+          "chunk_size"
+        ],
+        [
+          40,
+          "overlap_frames"
+        ],
+        [
+          40,
+          "max_segments"
+        ],
+        [
+          20,
+          "lora_name_2"
+        ],
+        [
+          20,
+          "relighting_strength"
+        ],
+        [
+          41,
+          "overlap_frames"
         ]
       ],
       "outputs": [
@@ -8515,12 +9045,16 @@
         30,
         31,
         34,
-        37
+        37,
+        39,
+        43,
+        44,
+        45
       ]
     },
     "app": {
-      "name": "MeetMap Drive → Character + Voice Swap V4",
-      "description": "Consumes new videos from MeetMap TikTok Content/Queue, performs FLUX.2 + SCAIL-2 character replacement, converts the trimmed source audio to the fixed creator_01 voice with Seed-VC, saves the final video, then moves the source to Already posted and marks it processed."
+      "name": "MeetMap Drive → Character + Voice Swap V5",
+      "description": "Multi-reference + official SCAIL-2 relighting + automatic 81/5 long-video chunking + VRAM release before Seed-VC, with Drive Queue finalization."
     }
   },
   "version": 0.4
