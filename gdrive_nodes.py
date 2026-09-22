@@ -10,6 +10,9 @@ import folder_paths
 
 
 _DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
+_DEFAULT_QUEUE_FOLDER_ID = "1oVcbIvv3w3FJK6VTunFzKMW4QRx4UIxf"
+_DEFAULT_PROCESSED_FOLDER_ID = "1hbZ44M0_TVxdyho4F-HxkQvPw_rkonB6"
+_DEFAULT_PARENT_FOLDER_ID = "1zqe7b5Nx06cJRE6MgaWomhRAv3rbZKAi"
 _VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi"}
 _PROCESSED_KEY = "meetmap_processed"
 _PROCESSED_AT_KEY = "meetmap_processed_at"
@@ -300,7 +303,7 @@ class MeetMapGoogleDriveLatestVideo:
                 "folder_id": (
                     "STRING",
                     {
-                        "default": os.environ.get("MEETMAP_MOTION_DRIVE_FOLDER_ID", ""),
+                        "default": os.environ.get("MEETMAP_MOTION_DRIVE_FOLDER_ID", _DEFAULT_QUEUE_FOLDER_ID),
                         "multiline": False,
                     },
                 ),
@@ -384,6 +387,9 @@ class MeetMapGoogleDriveLatestVideo:
                 "Re-run the installer and update ComfyUI."
             ) from exc
 
+        folder_id = str(folder_id or "").strip() or os.environ.get(
+            "MEETMAP_MOTION_DRIVE_FOLDER_ID", _DEFAULT_QUEUE_FOLDER_ID
+        ).strip() or _DEFAULT_QUEUE_FOLDER_ID
         folder_id = _resolve_folder_id(folder_id, "MEETMAP_MOTION_DRIVE_FOLDER_ID")
         service = _drive()
         source_folder = _validate_folder_target(
@@ -521,7 +527,10 @@ class MeetMapGoogleDriveMarkProcessed:
                 "processed_folder_id": (
                     "STRING",
                     {
-                        "default": os.environ.get("MEETMAP_MOTION_PROCESSED_FOLDER_ID", ""),
+                        "default": os.environ.get(
+                            "MEETMAP_MOTION_PROCESSED_FOLDER_ID",
+                            _DEFAULT_PROCESSED_FOLDER_ID,
+                        ),
                         "multiline": False,
                     },
                 ),
@@ -594,7 +603,11 @@ class MeetMapGoogleDriveMarkProcessed:
                 "Google Drive claim token mismatch. Refusing to mark another workflow run's file processed."
             )
 
-        move_target = str(processed_folder_id or "").strip()
+        move_target = (
+            str(processed_folder_id or "").strip()
+            or os.environ.get("MEETMAP_MOTION_PROCESSED_FOLDER_ID", "").strip()
+            or _DEFAULT_PROCESSED_FOLDER_ID
+        )
         source_parents = [
             str(value)
             for value in (metadata.get("parents") or [])
