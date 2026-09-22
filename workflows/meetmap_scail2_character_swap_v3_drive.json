@@ -1417,7 +1417,7 @@
         "human",
         "sam3.1_multiplex_fp16.safetensors",
         42,
-        "scail2_relighting_lora_bf16.safetensors",
+        "wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
         1
       ],
       "widgets_values_named": {
@@ -1442,7 +1442,7 @@
         "ckpt_name": "sam3.1_multiplex_fp16.safetensors",
         "noise_seed": 42,
         "start_frame": 0,
-        "lora_name_2": "scail2_relighting_lora_bf16.safetensors",
+        "lora_name_2": "wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
         "relighting_strength": 1
       },
       "title": "8 · SCAIL-2 · MULTI-REF + RELIGHT + AUTO CHUNKS"
@@ -6562,11 +6562,11 @@
               "ver": "0.24.0"
             },
             "widgets_values": [
-              "scail2_relighting_lora_bf16.safetensors",
+              "wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
               1
             ],
             "widgets_values_named": {
-              "lora_name": "scail2_relighting_lora_bf16.safetensors",
+              "lora_name": "wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
               "strength_model": 1
             },
             "title": "Official SCAIL-2 Relighting LoRA"
