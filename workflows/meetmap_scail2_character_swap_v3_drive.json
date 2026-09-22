@@ -1,6 +1,6 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 0,
+  "revision": 1,
   "last_node_id": 34,
   "last_link_id": 58,
   "nodes": [
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "# MeetMap Automated Character Swap · V3\n\nThis workflow is designed for the final hands-off input flow:\n\n**Google Drive reference-video folder → automatically pick newest unprocessed video → extract/crop frame 1 → generate frame 1 again with the creator character → use that generated frame as the SCAIL-2 character reference → render the complete motion → stitch back → preserve original audio → save → mark Drive file processed.**\n\n### Important identity rule\nThe first frame is **not** passed straight into SCAIL. It is first regenerated with FLUX.2 using:\n- the exact first cropped source frame as scene / pose anchor;\n- the creator reference folder as identity evidence.\n\nThat generated character-swapped first frame becomes the SCAIL reference image.\n\n### Queue behavior\nDrive files are claimed before rendering to reduce duplicate concurrent jobs. A file is marked processed only after the final video has successfully passed through SaveVideo.\n\nBase mode remains capped at 81 frames. Longer videos should use a later chunked/Extend workflow."
+        "# MeetMap Automated Character Swap · V3\n\nThis workflow is restricted to the reference-video source:\n\n**Google Drive → MeetMap TikTok Content → Queue**\n\nAt every workflow run it re-checks the configured Queue folder and selects only the newest video that has not already been processed and is not actively claimed by another render.\n\nThe Drive node validates that the source folder is named **Queue** and that its direct parent is named **MeetMap TikTok Content**. Configure `MEETMAP_MOTION_DRIVE_FOLDER_ID` with the Queue folder ID (or enter it in the node).\n\nFiles with `meetmap_processed=true` are ignored. A file is marked processed only after SaveVideo succeeds. If no new video exists, the workflow stops instead of reusing an old source."
       ],
       "title": "README · AUTOMATIC DRIVE → START FRAME → SCAIL"
     },
@@ -47,6 +47,22 @@
           "link": null,
           "widget": {
             "name": "folder_id"
+          }
+        },
+        {
+          "name": "required_folder_name",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "required_folder_name"
+          }
+        },
+        {
+          "name": "required_parent_folder_name",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "required_parent_folder_name"
           }
         },
         {
@@ -125,12 +141,14 @@
       "properties": {},
       "widgets_values": [
         "",
+        "Queue",
+        "MeetMap TikTok Content",
         "claim_required",
         180,
         1000,
         "meetmap_drive"
       ],
-      "title": "1 · GOOGLE DRIVE VIDEO QUEUE"
+      "title": "1 · DRIVE: MEETMAP TIKTOK CONTENT / QUEUE"
     },
     {
       "id": 3,
@@ -2017,7 +2035,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "## V3 automation rules\n\n**Drive queue:** newest unprocessed video is selected at workflow start. claim_required places a lease on that Drive file so a concurrent render will skip it.\n\n**First-frame rule:** the source frame is never used directly as the character reference. The first cropped frame is combined with the creator identity references and edited by FLUX.2 first. That generated frame is resized to the exact SCAIL crop and becomes the SCAIL reference image.\n\n**Finalization:** after the complete output has passed through SaveVideo, the Drive file is marked processed. Optionally set a processed-folder ID to move it out of the queue.\n\n**Base limit:** 81 frames. Use SCAIL Extend/chunking for longer reference videos."
+        "## V3 automation rules\n\n**Exact source path:** MeetMap TikTok Content → Queue. The Drive node validates both folder names before consuming a file.\n\n**Only new videos:** choose the newest video without `meetmap_processed=true`; skip active claims; fail closed when no new video exists.\n\n**First-frame rule:** regenerate the first cropped source frame with FLUX.2 + creator identity references before sending it to SCAIL.\n\n**Finalization:** only after SaveVideo succeeds, mark the Drive source processed and clear its claim.\n\n**Base limit:** 81 frames. Use SCAIL Extend/chunking for longer reference videos."
       ],
       "title": "NOTES · V3 AUTOMATION"
     },
@@ -8137,6 +8155,14 @@
         ],
         [
           2,
+          "required_folder_name"
+        ],
+        [
+          2,
+          "required_parent_folder_name"
+        ],
+        [
+          2,
           "claim_mode"
         ],
         [
@@ -8230,7 +8256,7 @@
     },
     "app": {
       "name": "MeetMap Drive → Character Swap V3",
-      "description": "Automatically consumes the newest unprocessed Drive motion-reference video, regenerates frame 1 with the creator identity via FLUX.2, renders SCAIL-2 replacement, stitches back, preserves audio, saves, then marks the Drive source processed."
+      "description": "Consumes only new reference videos from Google Drive → MeetMap TikTok Content → Queue, validates the exact folder path by name, claims each source once, performs FLUX.2 first-frame identity replacement + SCAIL-2 motion replacement, saves the result, then marks the source processed."
     }
   },
   "version": 0.4
