@@ -166,7 +166,7 @@ curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/
 
 Restart ComfyUI / the RunPod Pod after installation.
 
-## Automated Google Drive → SCAIL-2 Character Swap V3
+## Automated Google Drive → SCAIL-2 Character + Voice Swap V5
 
 Recommended workflow:
 
@@ -184,9 +184,15 @@ Google Drive / MeetMap TikTok Content / Queue
   -> combine first frame + creator identity references
   -> FLUX.2 Klein regenerates frame 1 with the replacement character
   -> resize generated frame to exact SCAIL crop size
-  -> SCAIL-2 replacement uses that generated frame as reference
+  -> build native SCAIL-2 multi-reference batch:
+       generated primary + face_front + face_angle + upper_body
+  -> split long source automatically into 81-frame chunks with 5-frame overlap
+  -> SCAIL-2 replacement with DPO + official Relighting LoRA (+ optional LightX2V)
+  -> stitch SCAIL chunks and remove repeated overlap
   -> feathered stitch back into untouched original frames
-  -> restore original source audio
+  -> unload FLUX/SCAIL models and release VRAM
+  -> convert trimmed source audio to the fixed creator_01 voice with Seed-VC
+  -> mux creator voice into final video
   -> SaveVideo
   -> move Drive source from Queue to Already posted
   -> mark source processed and clear its claim
@@ -194,7 +200,7 @@ Google Drive / MeetMap TikTok Content / Queue
 
 ### Critical first-frame rule
 
-V3 deliberately does **not** use the raw first frame as the SCAIL reference image. The exact first cropped frame is first edited by FLUX.2 Klein using the creator reference set. The edit prompt preserves the source pose, camera, scene, nearby objects and lighting while replacing the person with the creator identity. That generated frame then becomes the SCAIL-2 reference image.
+V5 deliberately does **not** use the raw first frame as the SCAIL primary reference image. The exact first cropped frame is first edited by FLUX.2 Klein using the creator reference set. The edit prompt preserves the source pose, camera, scene, nearby objects and lighting while replacing the person with the creator identity. That generated frame then becomes the SCAIL-2 reference image.
 
 ### Google Drive queue semantics
 
@@ -228,7 +234,7 @@ MEETMAP_MOTION_PROCESSED_FOLDER_NAME=Already posted
 
 Alternatively set `GOOGLE_SERVICE_ACCOUNT_FILE` to a mounted credential JSON path.
 
-Share the parent folder **MeetMap TikTok Content** with the service-account email as **Editor**, so the runtime can verify its direct child **Queue**. The V3 loader fails closed if the configured folder is not `Queue` directly under `MeetMap TikTok Content`. Editor access is required for claim/processed metadata.
+Share the parent folder **MeetMap TikTok Content** with the service-account email as **Editor**, so the runtime can verify its direct child **Queue**. The V5 loader fails closed if the configured folder is not `Queue` directly under `MeetMap TikTok Content`. Editor access is required for claim/processed metadata.
 
 A safe variable-name template is included at:
 
@@ -244,7 +250,7 @@ to:
 
 `ComfyUI/input/meetmap_refs/creator_01/`
 
-The V3 workflow loads this folder automatically with `MeetMapReferenceFolderLoader`.
+The V5 workflow loads this folder automatically with `MeetMapReferenceFolderLoader`.
 
 ### Install
 
@@ -256,18 +262,27 @@ curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/
 The installer now ensures:
 - SCAIL-2 Int8 ConvRot;
 - SCAIL-2 DPO LoRA;
+- official SCAIL-2 Relighting LoRA, SHA-256 verified and converted from SAT .pt to ComfyUI safetensors;
 - LightX2V distilled LoRA;
 - SAM3.1;
 - Wan VAE / UMT5 / CLIP Vision;
 - FLUX.2 Klein 4B FP8;
 - FLUX.2 Qwen text encoder and VAE;
+- Seed-VC custom node plus its Whisper, BigVGAN, RMVPE and speaker-encoder assets;
 - Google Drive Python dependencies;
-- creator reference files;
-- V2 and V3 workflow JSON files.
+- creator visual reference files;
+- fixed creator_01 voice reference fetched from Drive with SHA-256 verification;
+- V2 and V5 workflow JSON files.
 
 Restart the Pod / ComfyUI process after installation.
 
-### Safety limits
+### V5 multi-reference, relighting, long-video and VRAM rules
 
-The Base V3 graph remains capped at 81 frames. For longer clips, use a future SCAIL-2 Extend/chunked variant instead of raising the Base limit. The Drive loader also has a configurable maximum source file size and sanitizes all downloaded filenames/paths.
+- **Multi-reference:** the generated character-swapped start frame is the primary SCAIL reference. `face_front.png`, `face_angle.png` and `upper_body.png` are additional native SCAIL-2 reference views.
+- **Relighting:** the official `zai-org/SCAIL-2` relighting LoRA is used in replacement mode at strength `1.0`.
+- **Long video:** the workflow plans the full clip (up to 2401 frames), maps only the required 81-frame SCAIL chunks, uses 5-frame overlaps / 76-frame stride, removes repeated overlap during stitch, and hard-stops above 32 chunks to avoid an unexpectedly expensive RunPod job.
+- **VRAM:** Seed-VC cannot execute until the complete visual branch has finished. The barrier unloads all ComfyUI visual models and clears caches before audio conversion.
+- **Voice:** `creator_01` always uses the same Drive-backed, SHA-256-pinned Seed-VC reference audio.
+- **Failure safety:** a failed chunk, relighting pass, stitch, VRAM cleanup, Seed-VC conversion, mux or SaveVideo prevents Drive finalization. The source remains in Queue/retryable.
+- The Drive loader still enforces its maximum source file size and sanitizes downloaded filenames/paths.
 
