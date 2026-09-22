@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "# MeetMap SCAIL-2 Character Swap · V2\n\nBuilt from the current official ComfyUI **SCAIL-2 Int8 Base** replacement graph, with the practical crop/stitch workflow integrated directly into ComfyUI.\n\n### What V2 adds\n- full source video stays untouched outside the selected crop;\n- crop width/height are automatically snapped to multiples of 32;\n- crop coordinates are clamped inside the source frame;\n- requested frame count is normalized to **4n+1** and never exceeds available frames;\n- original source audio is trimmed to the generated duration and preserved;\n- SCAIL output is stitched back automatically with a feathered edge;\n- first crop / reference / swapped crop / final composite previews are visible;\n- official current **DPO LoRA** + LightX2V distilled path is retained.\n\nFor best identity, prepare the character reference from the cropped first frame (the supplied FLUX.2 character-swap workflow is a good reference-prep step)."
+        "# MeetMap SCAIL-2 Character Swap · V2\n\nBuilt from the current official ComfyUI **SCAIL-2 Int8 Base** replacement graph, with the practical crop/stitch workflow integrated directly into ComfyUI.\n\n### What V2 adds\n- full source video stays untouched outside the selected crop;\n- crop width/height are automatically snapped to multiples of 32;\n- crop coordinates are clamped inside the source frame;\n- requested frame count is normalized to **4n+1**, never exceeds available frames, and is capped at **81 frames** in this Base workflow;\n- original source audio is trimmed to the generated duration and preserved;\n- SCAIL output is stitched back automatically with a feathered edge;\n- first crop / reference / swapped crop / final composite previews are visible;\n- official current **DPO LoRA** + LightX2V distilled path is retained.\n\nFor best identity, prepare the character reference from the cropped first frame (the supplied FLUX.2 character-swap workflow is a good reference-prep step).\n\nFor longer clips, use a separate SCAIL-2 Extend/chunked workflow rather than increasing this Base graph beyond 81 frames."
       ],
       "title": "README · V2 PIPELINE"
     },
@@ -1584,7 +1584,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "## Why this is different from the supplied workflow\n\nThe supplied graph already uses SCAIL-2 replacement masks with SAM3 and an exact-size source path. This V2 keeps that idea but moves to the current official ComfyUI SCAIL-2 Int8 core (including DPO), and automates the crop/stitch steps that were previously done with FFmpeg + CapCut.\n\n**Reference prep:** for best identity, use the cropped first-frame preview as the scene/pose image when creating the aligned character reference in FLUX.2. Then load that result into **CHARACTER REFERENCE**.\n\n**Prompt:** describe the finished replaced video, not “replace X with Y”."
+        "## Why this is different from the supplied workflow\n\nThe supplied graph already uses SCAIL-2 replacement masks with SAM3 and an exact-size source path. This V2 keeps that idea but moves to the current official ComfyUI SCAIL-2 Int8 core (including DPO), and automates the crop/stitch steps that were previously done with FFmpeg + CapCut.\n\n**Reference prep:** for best identity, use the cropped first-frame preview as the scene/pose image when creating the aligned character reference in FLUX.2. Then load that result into **CHARACTER REFERENCE**.\n\n**Prompt:** describe the finished replaced video, not “replace X with Y”.\n\n**81-frame safety cap:** this V2 intentionally keeps the Base workflow at the standard 81-frame ceiling. Longer footage should be chunked with the SCAIL-2 Extend architecture so VRAM/cost does not explode."
       ],
       "title": "NOTES · REFERENCE PREP / QUALITY"
     }
@@ -6004,6 +6004,18 @@
     "linearData": {
       "inputs": [
         [
+          2,
+          "video"
+        ],
+        [
+          10,
+          "image"
+        ],
+        [
+          12,
+          "value"
+        ],
+        [
           4,
           "crop_x"
         ],
@@ -6026,6 +6038,14 @@
         [
           4,
           "feather_pixels"
+        ],
+        [
+          20,
+          "text_1"
+        ],
+        [
+          20,
+          "text_2"
         ],
         [
           20,
