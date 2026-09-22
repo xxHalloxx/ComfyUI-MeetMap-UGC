@@ -549,6 +549,51 @@ class MeetMapGoogleDriveMarkProcessed:
                 "Google Drive claim token mismatch. Refusing to mark another workflow run's file processed."
             )
 
+        move_target = str(processed_folder_id or "").strip()
+        source_parents = [
+            str(value)
+            for value in (metadata.get("parents") or [])
+            if str(value).strip()
+        ]
+        sibling_name = str(processed_folder_name or "").strip()
+
+        if not move_target and sibling_name:
+            if len(source_parents) != 1:
+                raise RuntimeError(
+                    f"Expected processed source to have exactly one Queue parent, got {len(source_parents)}."
+                )
+            sibling = _find_sibling_folder(
+                service,
+                source_parents[0],
+                sibling_name,
+                required_parent_folder_name=required_parent_folder_name,
+            )
+            move_target = str(sibling["id"])
+
+        if not move_target:
+            raise RuntimeError(
+                "No processed destination folder could be resolved. "
+                "Refusing to mark the source processed while it is still in Queue."
+            )
+
+        move_target = _resolve_folder_id(
+            move_target,
+            "MEETMAP_MOTION_PROCESSED_FOLDER_ID",
+        )
+        remove = ",".join(source_parents)
+        kwargs = {
+            "fileId": file_id,
+            "addParents": move_target,
+            "fields": "id,parents",
+            "supportsAllDrives": True,
+        }
+        if remove:
+            kwargs["removeParents"] = remove
+
+        # Move first. If this fails, the source remains in Queue and is not marked processed.
+        service.files().update(**kwargs).execute()
+
+        # Only finalize the processed state after the file has left Queue successfully.
         _merge_app_properties(
             service,
             file_id,
@@ -560,44 +605,10 @@ class MeetMapGoogleDriveMarkProcessed:
             },
         )
 
-        move_target = str(processed_folder_id or "").strip()
-        source_parents = [str(value) for value in (metadata.get("parents") or []) if str(value).strip()]
-        if not move_target:
-            sibling_name = str(processed_folder_name or "").strip()
-            if sibling_name:
-                if len(source_parents) != 1:
-                    raise RuntimeError(
-                        f"Expected processed source to have exactly one Queue parent, got {len(source_parents)}."
-                    )
-                sibling = _find_sibling_folder(
-                    service,
-                    source_parents[0],
-                    sibling_name,
-                    required_parent_folder_name=required_parent_folder_name,
-                )
-                move_target = str(sibling["id"])
-
-        if move_target:
-            move_target = _resolve_folder_id(
-                move_target,
-                "MEETMAP_MOTION_PROCESSED_FOLDER_ID",
-            )
-            remove = ",".join(source_parents)
-            kwargs = {
-                "fileId": file_id,
-                "addParents": move_target,
-                "fields": "id,parents",
-                "supportsAllDrives": True,
-            }
-            if remove:
-                kwargs["removeParents"] = remove
-            service.files().update(**kwargs).execute()
-            status = (
-                f"Drive source marked processed and moved to "
-                f"'{str(processed_folder_name or 'processed')}' ({move_target})."
-            )
-        else:
-            status = "Drive source marked processed but no processed folder was configured."
+        status = (
+            f"Drive source moved from Queue to "
+            f"'{sibling_name or 'processed'}' ({move_target}) and marked processed."
+        )
 
         return (video, status)
 
