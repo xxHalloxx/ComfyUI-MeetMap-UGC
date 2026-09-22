@@ -4,6 +4,8 @@ set -euo pipefail
 unset PIP_CONSTRAINT
 
 readonly MEETMAP_REPO_URL="https://github.com/xxHalloxx/ComfyUI-MeetMap-UGC.git"
+readonly SEEDVC_REPO_URL="https://github.com/billwuhao/ComfyUI_Seed-VC.git"
+readonly SEEDVC_COMMIT="02c0cb8b05121dd9e391b4287c8e28e0eb4e79a4"
 
 find_comfyui() {
   local candidate
@@ -39,28 +41,46 @@ ensure_meetmap_repo() {
   fi
 }
 
+ensure_seedvc_repo() {
+  local destination="$1"
+  if [[ -d "$destination/.git" ]]; then
+    git -C "$destination" fetch --depth 1 origin "$SEEDVC_COMMIT"
+  else
+    rm -rf "$destination"
+    git clone "$SEEDVC_REPO_URL" "$destination"
+  fi
+  git -C "$destination" checkout --detach "$SEEDVC_COMMIT"
+}
+
 main() {
-  local comfyui_dir python_bin custom_nodes meetmap_dir models_dir
+  local comfyui_dir python_bin custom_nodes meetmap_dir seedvc_dir models_dir input_dir
   comfyui_dir="$(find_comfyui)"
   python_bin="$(find_python "$comfyui_dir")"
   custom_nodes="$comfyui_dir/custom_nodes"
   meetmap_dir="$custom_nodes/ComfyUI-MeetMap-UGC"
+  seedvc_dir="$custom_nodes/ComfyUI_Seed-VC"
   models_dir="$comfyui_dir/models"
+  input_dir="$comfyui_dir/input"
 
   mkdir -p "$custom_nodes"
   ensure_meetmap_repo "$meetmap_dir"
+  ensure_seedvc_repo "$seedvc_dir"
 
   if ! "$python_bin" -c "import llama_cpp, huggingface_hub, googleapiclient; from google.oauth2 import service_account" >/dev/null 2>&1; then
     "$python_bin" -m pip install -r "$meetmap_dir/requirements.txt"
   fi
+
+  echo "[MeetMap SCAIL] Installing pinned Seed-VC runtime dependencies..."
+  "$python_bin" -m pip install -r "$seedvc_dir/requirements.txt"
   "$python_bin" -m py_compile \
     "$meetmap_dir/nodes.py" \
     "$meetmap_dir/reference_nodes.py" \
     "$meetmap_dir/gdrive_nodes.py" \
-    "$meetmap_dir/__init__.py"
+    "$meetmap_dir/voice_nodes.py" \
+    "$meetmap_dir/__init__.py" \
+    "$seedvc_dir/seedvcnode.py"
 
   # Copy repo-managed creator identity references into the path used by V3.
-  input_dir="$comfyui_dir/input"
   mkdir -p "$input_dir/meetmap_refs"
   if [[ -d "$meetmap_dir/refs/creators" ]]; then
     for creator_dir in "$meetmap_dir"/refs/creators/*; do
@@ -103,7 +123,7 @@ if missing:
 print("[MeetMap SCAIL] ComfyUI capability check passed.")
 PY
 
-  echo "[MeetMap SCAIL] Downloading SCAIL-2 + FLUX.2 start-frame model set..."
+  echo "[MeetMap SCAIL] Downloading SCAIL-2 + FLUX.2 + Seed-VC model set..."
   "$python_bin" - "$models_dir" <<'PY'
 import os
 from pathlib import Path
@@ -133,6 +153,50 @@ specs = [
      models / "text_encoders/qwen_3_4b.safetensors"),
     ("Comfy-Org/flux2-dev", "split_files/vae/flux2-vae.safetensors",
      models / "vae/flux2-vae.safetensors"),
+
+    # Seed-VC checkpoints.
+    ("Plachta/Seed-VC", "DiT_seed_v2_uvit_whisper_small_wavenet_bigvgan_pruned.pth",
+     models / "TTS/Seed-VC/DiT_seed_v2_uvit_whisper_small_wavenet_bigvgan_pruned.pth"),
+    ("Plachta/Seed-VC", "DiT_seed_v2_uvit_whisper_base_f0_44k_bigvgan_pruned_ft_ema.pth",
+     models / "TTS/Seed-VC/DiT_seed_v2_uvit_whisper_base_f0_44k_bigvgan_pruned_ft_ema.pth"),
+    ("funasr/campplus", "campplus_cn_common.bin",
+     models / "TTS/Seed-VC/campplus_cn_common.bin"),
+    ("lj1995/VoiceConversionWebUI", "rmvpe.pt",
+     models / "TTS/Seed-VC/rmvpe.pt"),
+
+    # Seed-VC BigVGAN vocoders.
+    ("nvidia/bigvgan_v2_22khz_80band_256x", "config.json",
+     models / "TTS/bigvgan_v2_22khz_80band_256x/config.json"),
+    ("nvidia/bigvgan_v2_22khz_80band_256x", "bigvgan_generator.pt",
+     models / "TTS/bigvgan_v2_22khz_80band_256x/bigvgan_generator.pt"),
+    ("nvidia/bigvgan_v2_44khz_128band_512x", "config.json",
+     models / "TTS/bigvgan_v2_44khz_128band_512x/config.json"),
+    ("nvidia/bigvgan_v2_44khz_128band_512x", "bigvgan_generator.pt",
+     models / "TTS/bigvgan_v2_44khz_128band_512x/bigvgan_generator.pt"),
+
+    # Local Whisper encoder used by Seed-VC.
+    ("openai/whisper-small", "model.safetensors",
+     models / "TTS/whisper-small/model.safetensors"),
+    ("openai/whisper-small", "config.json",
+     models / "TTS/whisper-small/config.json"),
+    ("openai/whisper-small", "preprocessor_config.json",
+     models / "TTS/whisper-small/preprocessor_config.json"),
+    ("openai/whisper-small", "generation_config.json",
+     models / "TTS/whisper-small/generation_config.json"),
+    ("openai/whisper-small", "tokenizer.json",
+     models / "TTS/whisper-small/tokenizer.json"),
+    ("openai/whisper-small", "tokenizer_config.json",
+     models / "TTS/whisper-small/tokenizer_config.json"),
+    ("openai/whisper-small", "special_tokens_map.json",
+     models / "TTS/whisper-small/special_tokens_map.json"),
+    ("openai/whisper-small", "added_tokens.json",
+     models / "TTS/whisper-small/added_tokens.json"),
+    ("openai/whisper-small", "merges.txt",
+     models / "TTS/whisper-small/merges.txt"),
+    ("openai/whisper-small", "normalizer.json",
+     models / "TTS/whisper-small/normalizer.json"),
+    ("openai/whisper-small", "vocab.json",
+     models / "TTS/whisper-small/vocab.json"),
 ]
 
 for repo, filename, target in specs:
@@ -170,6 +234,14 @@ PY
     exit 1
   }
 
+  voice_ref="$input_dir/meetmap_refs/creator_01/voice/reference.wav"
+  if [[ -s "$voice_ref" ]]; then
+    echo "[MeetMap SCAIL] Creator voice reference present: $voice_ref"
+  else
+    echo "[MeetMap SCAIL] WARNING: creator voice reference is missing: $voice_ref" >&2
+    echo "[MeetMap SCAIL] Add a clean reference.wav before running V3 voice conversion." >&2
+  fi
+
   echo "[MeetMap SCAIL] Installation complete."
   echo "[MeetMap SCAIL] V3 Drive automation requires:"
   echo "  GOOGLE_SERVICE_ACCOUNT_JSON=<service account JSON secret>"
@@ -180,6 +252,7 @@ PY
   echo "  optional: MEETMAP_MOTION_PROCESSED_FOLDER_NAME=Already posted"
   echo "[MeetMap SCAIL] The runtime refuses source folders outside MeetMap TikTok Content/Queue."
   echo "[MeetMap SCAIL] Successful sources are moved to sibling folder 'Already posted'."
+  echo "[MeetMap SCAIL] Seed-VC uses input/meetmap_refs/creator_01/voice/reference.wav as the fixed voice."
   echo "[MeetMap SCAIL] Share the Queue path with the service-account email as Editor."
   echo "[MeetMap SCAIL] Restart the Pod / ComfyUI process before loading the workflow."
   echo "[MeetMap SCAIL] Recommended workflow: meetmap_scail2_character_swap_v3_drive.json"
