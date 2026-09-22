@@ -106,6 +106,9 @@ required_extra_sources = {
         "class Flux2Scheduler", "class EmptyFlux2LatentImage",
     ],
     "comfy_extras/nodes_edit_model.py": ["class ReferenceLatent"],
+    "comfy_extras/nodes_qwen.py": [
+        "class TextEncodeQwenImage21", "class QwenImage21Cache",
+    ],
     "comfy_extras/nodes_mask.py": ["class MaskToImage"],
     "comfy_extras/nodes_post_processing.py": ["class ImageScaleToTotalPixels"],
     "comfy_extras/nodes_video.py": ["class SaveVideo"],
@@ -136,7 +139,7 @@ PY
   ensure_repo "$CROP_STITCH_URL" "$custom_nodes/ComfyUI-Inpaint-CropAndStitch" "$CROP_STITCH_COMMIT"
 
   "$python_bin" -m pip install -r "$meetmap_dir/requirements.txt"
-  "$python_bin" -m py_compile "$meetmap_dir/nodes.py" "$meetmap_dir/reference_nodes.py" "$meetmap_dir/__init__.py"
+  "$python_bin" -m py_compile "$meetmap_dir/nodes.py" "$meetmap_dir/reference_nodes.py" "$meetmap_dir/github_ref_nodes.py" "$meetmap_dir/__init__.py"
   [[ ! -f "$custom_nodes/ComfyUI-Impact-Pack/requirements.txt" ]] || "$python_bin" -m pip install -r "$custom_nodes/ComfyUI-Impact-Pack/requirements.txt"
   [[ ! -f "$custom_nodes/ComfyUI-Impact-Subpack/requirements.txt" ]] || "$python_bin" -m pip install -r "$custom_nodes/ComfyUI-Impact-Subpack/requirements.txt"
 
@@ -171,6 +174,9 @@ from huggingface_hub import hf_hub_download
 models = Path(sys.argv[1])
 specs = [
     ("bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF", "Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf", models / "LLM/Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf"),
+    ("Comfy-Org/Qwen-Image-2.1", "diffusion_models/qwen_image_2.1_int8_convrot.safetensors", models / "diffusion_models/qwen_image_2.1_int8_convrot.safetensors"),
+    ("Comfy-Org/Qwen-Image-2.1", "text_encoders/qwen3vl_8b_int8_convrot.safetensors", models / "text_encoders/qwen3vl_8b_int8_convrot.safetensors"),
+    ("Comfy-Org/Qwen-Image-2.1", "vae/qwen_image_2.1_vae_bf16.safetensors", models / "vae/qwen_image_2.1_vae_bf16.safetensors"),
     ("Bingsu/adetailer", "face_yolov8m.pt", models / "ultralytics/bbox/face_yolov8m.pt"),
     ("black-forest-labs/FLUX.2-klein-4b-fp8", "flux-2-klein-4b-fp8.safetensors", models / "diffusion_models/flux-2-klein-4b-fp8.safetensors"),
     ("Comfy-Org/z_image_turbo", "split_files/text_encoders/qwen_3_4b.safetensors", models / "text_encoders/qwen_3_4b.safetensors"),
@@ -210,6 +216,9 @@ PY
 
   for required_file in \
     "$models_dir/LLM/Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf" \
+    "$models_dir/diffusion_models/qwen_image_2.1_int8_convrot.safetensors" \
+    "$models_dir/text_encoders/qwen3vl_8b_int8_convrot.safetensors" \
+    "$models_dir/vae/qwen_image_2.1_vae_bf16.safetensors" \
     "$models_dir/ultralytics/bbox/face_yolov8m.pt" \
     "$models_dir/diffusion_models/flux-2-klein-4b-fp8.safetensors" \
     "$models_dir/text_encoders/qwen_3_4b.safetensors" \
@@ -225,6 +234,7 @@ PY
 
   [[ -s "$custom_nodes/ComfyUI-Inpaint-CropAndStitch/inpaint_cropandstitch.py" ]] || { echo "Pod provisioning incomplete: Crop & Stitch custom node missing" >&2; exit 1; }
   echo "[MeetMap UGC] Reddit-style face realism nodes installed: Impact YOLO + Crop & Stitch + FLUX.2 edit."
+  echo "[MeetMap UGC] Qwen Image 2.1 + MeetMap auto-reference pipeline is provisioned."
   echo "[MeetMap UGC] ALL REQUIRED MODELS ARE ON THIS POD."
   echo "[MeetMap UGC] IMPORTANT: custom nodes were installed while ComfyUI may already be running."
   echo "[MeetMap UGC] RESTART THE RUNPOD POD/COMFYUI PROCESS NOW. A browser refresh is not enough."
