@@ -264,6 +264,20 @@ PY
       --print-sample 3
   fi
   [[ -s "$relight_out" ]] || { echo "Relighting LoRA conversion failed." >&2; exit 1; }
+  "$python_bin" - "$relight_out" <<'PY'
+from pathlib import Path
+import sys
+from safetensors.torch import load_file
+
+path = Path(sys.argv[1])
+state = load_file(str(path), device="cpu")
+if not state:
+    raise SystemExit(f"Converted relighting LoRA contains no tensors: {path}")
+required_suffixes = (".lora_down.weight", ".lora_up.weight")
+if not any(key.endswith(required_suffixes) for key in state):
+    raise SystemExit(f"Converted relighting LoRA has no expected LoRA tensors: {path}")
+print(f"[MeetMap SCAIL] Relighting safetensors validated: {len(state)} tensors.")
+PY
   rm -f "$relight_sat"
   rmdir "$models_dir/loras/.meetmap_scail2_relighting/model" 2>/dev/null || true
   rmdir "$models_dir/loras/.meetmap_scail2_relighting" 2>/dev/null || true
@@ -275,9 +289,40 @@ PY
      "$comfyui_dir/user/default/workflows/meetmap_scail2_character_swap_v3_drive.json"
 
   [[ -s "$comfyui_dir/user/default/workflows/meetmap_scail2_character_swap_v3_drive.json" ]] || {
-    echo "V4 workflow copy failed." >&2
+    echo "V5 workflow copy failed." >&2
     exit 1
   }
+
+  "$python_bin" - "$comfyui_dir/user/default/workflows/meetmap_scail2_character_swap_v3_drive.json" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+workflow = json.loads(path.read_text(encoding="utf-8"))
+types = {node.get("type") for node in workflow.get("nodes", [])}
+required = {
+    "MeetMapGoogleDriveLatestVideo",
+    "MeetMapSCAILReferenceBatch",
+    "MeetMapSCAILLongVideoPlanner",
+    "MeetMapSCAILChunkStitch",
+    "MeetMapReleaseVRAMThenPassAudio",
+    "SeedVCRun",
+    "MeetMapGoogleDriveMarkProcessed",
+}
+missing = sorted(required - types)
+if missing:
+    raise SystemExit("Installed V5 workflow is missing required nodes: " + ", ".join(missing))
+
+scail = next((n for n in workflow.get("nodes", []) if n.get("id") == 20), None)
+if not scail:
+    raise SystemExit("Installed V5 workflow is missing SCAIL subgraph node 20.")
+widgets = scail.get("widgets_values", [])
+if "scail2_relighting_lora_bf16.safetensors" not in widgets:
+    raise SystemExit("Installed V5 workflow does not select the relighting LoRA.")
+
+print("[MeetMap SCAIL] V5 workflow JSON validation passed.")
+PY
 
   if [[ -s "$voice_ref" ]]; then
     current_sha="$(sha256sum "$voice_ref" | awk '{print $1}')"
