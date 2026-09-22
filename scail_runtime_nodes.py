@@ -260,23 +260,28 @@ class MeetMapOptionalLoraModelLoader:
 
     def load(self, model, preferred_lora, strength_model, enabled, fallback_loras=""):
         if not bool(enabled) or float(strength_model) == 0.0:
-            return (model, "Optional LoRA disabled; base model passed through.")
+            status = "Optional LoRA disabled; base model passed through."
+            print("[MeetMap SCAIL] " + status)
+            return (model, status)
 
         try:
             import folder_paths
             import comfy.sd
             import comfy.utils
         except Exception as exc:
-            return (model, f"Optional LoRA runtime unavailable; base model used: {exc}")
+            status = f"WARNING: optional LoRA runtime unavailable; base model used: {exc}"
+            print("[MeetMap SCAIL] " + status)
+            return (model, status)
 
         available = list(folder_paths.get_filename_list("loras"))
         requested, candidates = self._candidate_names(preferred_lora, fallback_loras, available)
         if not candidates:
-            return (
-                model,
-                "Optional LoRA missing; base model used. Requested: "
-                + (", ".join(requested) if requested else "<empty>"),
+            status = (
+                "WARNING: optional LoRA missing; base model used. Requested: "
+                + (", ".join(requested) if requested else "<empty>")
             )
+            print("[MeetMap SCAIL] " + status)
+            return (model, status)
 
         failures = []
         for name in candidates:
@@ -301,17 +306,15 @@ class MeetMapOptionalLoraModelLoader:
                     0,
                     lora_metadata=metadata,
                 )
-                return (
-                    model_lora,
-                    f"Applied optional LoRA '{name}' at strength {float(strength_model):.2f}.",
-                )
+                status = f"Applied optional LoRA '{name}' at strength {float(strength_model):.2f}."
+                print("[MeetMap SCAIL] " + status)
+                return (model_lora, status)
             except Exception as exc:
                 failures.append(f"{name}: {exc}")
 
-        return (
-            model,
-            "All optional LoRA candidates failed; base model used. " + " | ".join(failures),
-        )
+        status = "WARNING: all optional LoRA candidates failed; base model used. " + " | ".join(failures)
+        print("[MeetMap SCAIL] " + status)
+        return (model, status)
 
 
 class MeetMapReleaseVRAMThenPassAudio:
@@ -374,11 +377,91 @@ class MeetMapReleaseVRAMThenPassAudio:
         return (audio, "VRAM cleanup barrier completed. " + "; ".join(notes))
 
 
+class MeetMapStatusCollector:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "drive": ("STRING", {"forceInput": True}),
+                "references": ("STRING", {"forceInput": True}),
+                "chunk_plan": ("STRING", {"forceInput": True}),
+                "stitch": ("STRING", {"forceInput": True}),
+                "vram": ("STRING", {"forceInput": True}),
+                "voice_reference": ("STRING", {"forceInput": True}),
+                "voice_conversion": ("STRING", {"forceInput": True}),
+                "save": ("STRING", {"forceInput": True}),
+                "drive_finalize": ("STRING", {"forceInput": True}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "INT", "BOOLEAN")
+    RETURN_NAMES = ("summary", "warning_count", "used_fallback")
+    FUNCTION = "collect"
+    OUTPUT_NODE = True
+    CATEGORY = "MeetMap/Runtime"
+
+    def collect(
+        self,
+        drive,
+        references,
+        chunk_plan,
+        stitch,
+        vram,
+        voice_reference,
+        voice_conversion,
+        save,
+        drive_finalize,
+    ):
+        items = [
+            ("drive", drive),
+            ("references", references),
+            ("chunk_plan", chunk_plan),
+            ("stitch", stitch),
+            ("vram", vram),
+            ("voice_reference", voice_reference),
+            ("voice_conversion", voice_conversion),
+            ("save", save),
+            ("drive_finalize", drive_finalize),
+        ]
+
+        warning_terms = (
+            "warning",
+            "fallback",
+            "failed",
+            "missing",
+            "unavailable",
+            "skipped",
+            "recovery",
+            "original source audio used",
+            "base model used",
+            "zero creator refs",
+        )
+        warnings = []
+        lines = []
+        for name, value in items:
+            text = str(value or "").strip()
+            if not text:
+                text = "no status text"
+            lines.append(f"{name}: {text}")
+            lowered = text.lower()
+            if any(term in lowered for term in warning_terms):
+                warnings.append(name)
+
+        summary = (
+            f"MeetMap run completed with {len(warnings)} warning/fallback stage(s). "
+            + ("Fallback stages: " + ", ".join(warnings) + ". " if warnings else "No fallbacks reported. ")
+            + "\n".join(lines)
+        )
+        print("[MeetMap Summary] " + summary.replace("\n", " | "))
+        return (summary, len(warnings), bool(warnings))
+
+
 NODE_CLASS_MAPPINGS = {
     "MeetMapSCAILLongVideoPlanner": MeetMapSCAILLongVideoPlanner,
     "MeetMapSCAILChunkStitch": MeetMapSCAILChunkStitch,
     "MeetMapOptionalLoraModelLoader": MeetMapOptionalLoraModelLoader,
     "MeetMapReleaseVRAMThenPassAudio": MeetMapReleaseVRAMThenPassAudio,
+    "MeetMapStatusCollector": MeetMapStatusCollector,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -386,4 +469,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MeetMapSCAILChunkStitch": "MeetMap SCAIL Chunk Stitch",
     "MeetMapOptionalLoraModelLoader": "MeetMap Optional LoRA Model Loader",
     "MeetMapReleaseVRAMThenPassAudio": "MeetMap Release VRAM Then Pass Audio",
+    "MeetMapStatusCollector": "MeetMap Run Status Collector",
 }
