@@ -463,6 +463,88 @@ class MeetMapVideoBatchPlanner:
         )
 
 
+class MeetMapSequentialRunControl:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "enable_sequential_queue": ("BOOLEAN", {"default": True}),
+                "video_count": ("INT", {"default": 3, "min": 1, "max": 10, "step": 1}),
+                "base_seed": (
+                    "INT",
+                    {
+                        "default": 42,
+                        "min": 0,
+                        "max": 0xFFFFFFFFFFFFFFFF,
+                    },
+                ),
+                "randomize_batch_seed": ("BOOLEAN", {"default": True}),
+                "run_index": ("INT", {"default": 1, "min": 1, "max": 10, "step": 1}),
+                "filename_root": (
+                    "STRING",
+                    {"default": "video/MeetMap_MiniMax_H3_V2", "multiline": False},
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "INT", "INT", "INT", "STRING", "STRING")
+    RETURN_NAMES = (
+        "variation_note",
+        "video_index",
+        "total_videos",
+        "content_seed",
+        "filename_prefix",
+        "progress",
+    )
+    FUNCTION = "plan"
+    CATEGORY = "MeetMap/UGC"
+    DESCRIPTION = (
+        "Controls the frontend sequential queue. One Run click queues N complete independent "
+        "workflow executions, so each video is finished, saved and visible before later videos finish."
+    )
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
+
+    def plan(
+        self,
+        enable_sequential_queue,
+        video_count,
+        base_seed,
+        randomize_batch_seed,
+        run_index,
+        filename_root,
+    ):
+        count = max(1, min(10, int(video_count)))
+        index = max(1, min(count, int(run_index)))
+        base = int(base_seed) & 0xFFFFFFFFFFFFFFFF
+        root = str(filename_root).strip().strip("/") or "video/MeetMap_MiniMax_H3_V2"
+
+        # Large odd stride gives every queued video a deterministic, widely
+        # separated content seed while remaining reproducible for a given batch seed.
+        content_seed = (base + index * 0x9E3779B97F4A7C15) & 0xFFFFFFFFFFFFFFFF
+        batch_folder = f"batch_{base & 0xFFFFFFFF:08x}"
+        filename_prefix = f"{root}/{batch_folder}/video_{index:02d}"
+
+        variation_note = (
+            f"Sequential video {index} of {count}, batch seed {base}. "
+            "Create a clearly unique MeetMap UGC concept for this exact iteration. "
+            "Choose a different main topic/activity, opening hook wording, outfit, pose, "
+            "room composition and small visual details from the other videos in this queue. "
+            "Do not reuse a generic opening sentence. Keep the same creator identity only."
+        )
+        progress = f"Video {index} / {count}"
+        return (
+            variation_note,
+            index,
+            count,
+            content_seed,
+            filename_prefix,
+            progress,
+        )
+
+
 class MeetMapContentGenerator:
     @classmethod
     def INPUT_TYPES(cls):
@@ -759,6 +841,7 @@ Maintain direct eye contact most of the time, natural blinking, subtle breathing
 NODE_CLASS_MAPPINGS = {
     "MeetMapSCAILCropPlanner": MeetMapSCAILCropPlanner,
     "MeetMapVideoBatchPlanner": MeetMapVideoBatchPlanner,
+    "MeetMapSequentialRunControl": MeetMapSequentialRunControl,
     "MeetMapContentGenerator": MeetMapContentGenerator,
     "MeetMapQwenImage21PromptBuilder": MeetMapQwenImage21PromptBuilder,
     "MeetMapMiniMaxH3PromptBuilder": MeetMapMiniMaxH3PromptBuilder,
@@ -769,6 +852,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "MeetMapSCAILCropPlanner": "MeetMap SCAIL Crop + Frame Planner",
     "MeetMapVideoBatchPlanner": "MeetMap Video Batch Planner",
+    "MeetMapSequentialRunControl": "MeetMap Sequential Video Queue",
     "MeetMapContentGenerator": "MeetMap Content Generator",
     "MeetMapQwenImage21PromptBuilder": "MeetMap Qwen Image 2.1 Prompt Builder",
     "MeetMapMiniMaxH3PromptBuilder": "MeetMap MiniMax H3 Prompt Builder",
