@@ -164,8 +164,8 @@ class MeetMapSceneReferenceBatch:
     def build(self, scene_image, references, max_references):
         if scene_image is None or scene_image.ndim != 4 or scene_image.shape[0] < 1:
             raise ValueError("scene_image must contain at least one IMAGE frame.")
-        if not isinstance(references, (list, tuple)) or not references:
-            raise RuntimeError("MeetMap reference set is empty.")
+        if not isinstance(references, (list, tuple)):
+            references = []
 
         scene = scene_image[:1, ..., :3].clamp(0.0, 1.0)
         target_h = int(scene.shape[1])
@@ -174,11 +174,17 @@ class MeetMapSceneReferenceBatch:
         selected = list(references)[: max(1, int(max_references))]
         prepared = [scene]
         names = []
+        warnings = []
         for index, item in enumerate(selected, start=1):
             image = item.get("image") if isinstance(item, dict) else None
             if image is None:
-                raise ValueError(f"Reference #{index} is missing IMAGE data.")
-            prepared.append(_resize_cover(image, target_h, target_w))
+                warnings.append(f"reference #{index} missing IMAGE data")
+                continue
+            try:
+                prepared.append(_resize_cover(image, target_h, target_w))
+            except Exception as exc:
+                warnings.append(f"reference #{index} skipped: {exc}")
+                continue
             names.append(
                 str(item.get("filename", f"reference_{index:02d}"))
                 if isinstance(item, dict)
@@ -188,8 +194,15 @@ class MeetMapSceneReferenceBatch:
         batch = torch.cat(prepared, dim=0)
         status = (
             f"FLUX scene/reference batch: 1 source-scene frame + {len(names)} identity refs "
-            f"at {target_w}x{target_h}. Identity refs: " + ", ".join(names)
+            f"at {target_w}x{target_h}."
         )
+        if names:
+            status += " Identity refs: " + ", ".join(names) + "."
+        else:
+            status += " WARNING: no usable creator refs; continuing with source scene only."
+        if warnings:
+            status += " Recovery: " + "; ".join(warnings) + "."
+        print("[MeetMap UGC] " + status)
         return (batch, status)
 
 
@@ -226,8 +239,8 @@ class MeetMapSCAILReferenceBatch:
     def build(self, primary_image, references, priority_filenames, max_additional_references):
         if primary_image is None or primary_image.ndim != 4 or primary_image.shape[0] < 1:
             raise ValueError("primary_image must contain at least one IMAGE frame.")
-        if not isinstance(references, (list, tuple)) or not references:
-            raise RuntimeError("MeetMap creator reference set is empty.")
+        if not isinstance(references, (list, tuple)):
+            references = []
 
         primary = primary_image[:1, ..., :3].clamp(0.0, 1.0)
         target_h = int(primary.shape[1])
@@ -277,21 +290,33 @@ class MeetMapSCAILReferenceBatch:
                 if len(selected) >= limit:
                     break
 
-        if not selected:
-            raise RuntimeError("No usable creator images were available for SCAIL multi-reference.")
-
         batch_parts = [primary]
         names = []
+        warnings = []
         for index, item in enumerate(selected, start=1):
-            image = item["image"]
-            batch_parts.append(_resize_cover(image, target_h, target_w))
+            image = item.get("image") if isinstance(item, dict) else None
+            if image is None:
+                warnings.append(f"reference #{index} missing IMAGE data")
+                continue
+            try:
+                batch_parts.append(_resize_cover(image, target_h, target_w))
+            except Exception as exc:
+                warnings.append(f"reference #{index} skipped: {exc}")
+                continue
             names.append(str(item.get("filename", f"reference_{index:02d}")))
 
         batch = torch.cat(batch_parts, dim=0)
         status = (
             f"SCAIL-2 multi-reference batch: 1 generated primary + {len(names)} additional "
-            f"creator views at {target_w}x{target_h}: " + ", ".join(names)
+            f"creator views at {target_w}x{target_h}."
         )
+        if names:
+            status += " Refs: " + ", ".join(names) + "."
+        else:
+            status += " WARNING: no usable creator refs; continuing with generated primary only."
+        if warnings:
+            status += " Recovery: " + "; ".join(warnings) + "."
+        print("[MeetMap SCAIL] " + status)
         return (batch, status)
 
 
@@ -330,10 +355,20 @@ class MeetMapReferenceFolderLoader:
             return float("nan")
 
     def load(self, reference_folder, max_references, selection_mode, include_subfolders):
-        folder = _resolve_reference_folder(reference_folder)
-        files = _discover_files(folder, bool(include_subfolders), str(selection_mode))
+        try:
+            folder = _resolve_reference_folder(reference_folder)
+            files = _discover_files(folder, bool(include_subfolders), str(selection_mode))
+        except Exception as exc:
+            placeholder = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
+            warning = f"WARNING: creator reference folder unavailable ({exc}); continuing with zero creator refs."
+            print("[MeetMap UGC] " + warning)
+            return ([], placeholder, 0, warning)
+
         if not files:
-            raise RuntimeError(f"No creator reference images found in: {folder}")
+            placeholder = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
+            warning = f"WARNING: no creator reference images found in {folder}; continuing with zero creator refs."
+            print("[MeetMap UGC] " + warning)
+            return ([], placeholder, 0, warning)
 
         limit = max(1, int(max_references))
         selected = files[:limit]
@@ -362,7 +397,10 @@ class MeetMapReferenceFolderLoader:
             previews.append(preview)
 
         if not references:
-            raise RuntimeError(f"No readable creator reference images found in: {folder}")
+            placeholder = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
+            warning = f"WARNING: all creator reference images in {folder} were unreadable; continuing with zero creator refs."
+            print("[MeetMap UGC] " + warning)
+            return ([], placeholder, 0, warning)
 
         preview_batch = torch.cat(previews, dim=0)
         filenames = "\n".join(item["filename"] for item in references)
@@ -393,29 +431,42 @@ class MeetMapMultiReferenceConditioning:
     DESCRIPTION = "VAE-encodes a dynamic creator reference set and appends every latent using ComfyUI's native reference_latents semantics."
 
     def apply(self, positive, negative, references, vae, max_references, reference_megapixels):
-        if not isinstance(references, (list, tuple)) or not references:
-            raise RuntimeError("MeetMap reference set is empty.")
+        if not isinstance(references, (list, tuple)):
+            references = []
 
         selected = list(references)[: max(1, int(max_references))]
         used_names = []
+        warnings = []
 
         for index, item in enumerate(selected, start=1):
             image = item.get("image") if isinstance(item, dict) else None
             if image is None:
-                raise ValueError(f"Reference #{index} is missing IMAGE data.")
+                warnings.append(f"reference #{index} missing IMAGE data")
+                continue
 
-            prepared = _scale_to_megapixels(image, float(reference_megapixels))
-            samples = vae.encode(prepared[..., :3])
-
-            values = {"reference_latents": [samples]}
-            positive = node_helpers.conditioning_set_values(positive, values, append=True)
-            negative = node_helpers.conditioning_set_values(negative, values, append=True)
+            try:
+                prepared = _scale_to_megapixels(image, float(reference_megapixels))
+                samples = vae.encode(prepared[..., :3])
+                values = {"reference_latents": [samples]}
+                positive = node_helpers.conditioning_set_values(positive, values, append=True)
+                negative = node_helpers.conditioning_set_values(negative, values, append=True)
+            except Exception as exc:
+                warnings.append(f"reference #{index} conditioning skipped: {exc}")
+                continue
 
             filename = item.get("filename", f"reference_{index:02d}") if isinstance(item, dict) else f"reference_{index:02d}"
             used_names.append(str(filename))
 
-        print(f"[MeetMap UGC] Applied {len(used_names)} FLUX reference latents.")
-        return (positive, negative, len(used_names), "\n".join(used_names))
+        status = f"Applied {len(used_names)} FLUX reference latent(s)."
+        if not used_names:
+            status += " WARNING: no usable reference latents; base conditioning passed through unchanged."
+        if warnings:
+            status += " Recovery: " + "; ".join(warnings) + "."
+        print("[MeetMap UGC] " + status)
+        names = "\n".join(used_names)
+        if warnings:
+            names += ("\n" if names else "") + "WARNING: " + "; ".join(warnings)
+        return (positive, negative, len(used_names), names)
 
 
 NODE_CLASS_MAPPINGS = {
