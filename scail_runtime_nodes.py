@@ -212,7 +212,6 @@ class MeetMapReleaseVRAMThenPassAudio:
             model_management.soft_empty_cache()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-                torch.cuda.ipc_collect()
             status = "Visual models unloaded and GPU cache released before Seed-VC."
         except Exception as exc:
             # Fail closed: if cleanup itself is broken we do not continue into another
