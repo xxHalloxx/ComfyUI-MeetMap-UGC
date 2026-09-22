@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install models + MeetMap runtime support for the integrated SCAIL-2 character swap V2 workflow.
+# Install models + MeetMap runtime support for SCAIL-2 character swap V2/V3 (Google Drive automation).
 set -euo pipefail
 unset PIP_CONSTRAINT
 
@@ -50,10 +50,26 @@ main() {
   mkdir -p "$custom_nodes"
   ensure_meetmap_repo "$meetmap_dir"
 
-  if ! "$python_bin" -c "import llama_cpp, huggingface_hub" >/dev/null 2>&1; then
+  if ! "$python_bin" -c "import llama_cpp, huggingface_hub, googleapiclient; from google.oauth2 import service_account" >/dev/null 2>&1; then
     "$python_bin" -m pip install -r "$meetmap_dir/requirements.txt"
   fi
-  "$python_bin" -m py_compile "$meetmap_dir/nodes.py" "$meetmap_dir/reference_nodes.py" "$meetmap_dir/__init__.py"
+  "$python_bin" -m py_compile \
+    "$meetmap_dir/nodes.py" \
+    "$meetmap_dir/reference_nodes.py" \
+    "$meetmap_dir/gdrive_nodes.py" \
+    "$meetmap_dir/__init__.py"
+
+  # Copy repo-managed creator identity references into the path used by V3.
+  input_dir="$comfyui_dir/input"
+  mkdir -p "$input_dir/meetmap_refs"
+  if [[ -d "$meetmap_dir/refs/creators" ]]; then
+    for creator_dir in "$meetmap_dir"/refs/creators/*; do
+      [[ -d "$creator_dir" ]] || continue
+      creator_name="$(basename "$creator_dir")"
+      mkdir -p "$input_dir/meetmap_refs/$creator_name"
+      cp -a "$creator_dir/." "$input_dir/meetmap_refs/$creator_name/"
+    done
+  fi
 
   "$python_bin" - "$comfyui_dir" <<'PY'
 from pathlib import Path
@@ -65,6 +81,9 @@ required = {
     "comfy_extras/nodes_sam3.py": ["class SAM3_VideoTrack"],
     "comfy_extras/nodes_audio.py": ["class TrimAudioDuration"],
     "comfy_extras/nodes_mask.py": ["class ImageCompositeMasked", "class FeatherMask", "class SolidMask"],
+    "comfy_extras/nodes_flux.py": ["class Flux2Scheduler", "class EmptyFlux2LatentImage"],
+    "comfy_extras/nodes_edit_model.py": ["class ReferenceLatent"],
+    "comfy_extras/nodes_post_processing.py": ["class ImageScaleToTotalPixels"],
 }
 missing = []
 for rel, symbols in required.items():
@@ -78,13 +97,13 @@ for rel, symbols in required.items():
             missing.append(rel + ": " + symbol)
 if missing:
     raise SystemExit(
-        "ComfyUI is too old for the SCAIL-2 V2 workflow. Update ComfyUI first. Missing: "
+        "ComfyUI is too old for the SCAIL-2 V3 workflow. Update ComfyUI first. Missing: "
         + "; ".join(missing)
     )
 print("[MeetMap SCAIL] ComfyUI capability check passed.")
 PY
 
-  echo "[MeetMap SCAIL] Downloading current official Int8 Base + DPO model set..."
+  echo "[MeetMap SCAIL] Downloading SCAIL-2 + FLUX.2 start-frame model set..."
   "$python_bin" - "$models_dir" <<'PY'
 import os
 from pathlib import Path
@@ -108,36 +127,57 @@ specs = [
      models / "clip_vision/clip_vision_h.safetensors"),
     ("Comfy-Org/sam3.1", "checkpoints/sam3.1_multiplex_fp16.safetensors",
      models / "checkpoints/sam3.1_multiplex_fp16.safetensors"),
+    ("black-forest-labs/FLUX.2-klein-4b-fp8", "flux-2-klein-4b-fp8.safetensors",
+     models / "diffusion_models/flux-2-klein-4b-fp8.safetensors"),
+    ("Comfy-Org/z_image_turbo", "split_files/text_encoders/qwen_3_4b.safetensors",
+     models / "text_encoders/qwen_3_4b.safetensors"),
+    ("Comfy-Org/flux2-dev", "split_files/vae/flux2-vae.safetensors",
+     models / "vae/flux2-vae.safetensors"),
 ]
 
 for repo, filename, target in specs:
     if target.is_file() and target.stat().st_size > 0:
         print(f"[MeetMap SCAIL] present: {target}")
         continue
+
+    import shutil
     target.parent.mkdir(parents=True, exist_ok=True)
-    hf_hub_download(
-        repo_id=repo,
-        filename=filename,
-        local_dir=str(models),
-        token=token,
+    downloaded = Path(
+        hf_hub_download(
+            repo_id=repo,
+            filename=filename,
+            local_dir=str(target.parent),
+            token=token,
+        )
     )
+    if downloaded.resolve() != target.resolve():
+        target.unlink(missing_ok=True)
+        shutil.move(str(downloaded), str(target))
+
     if not target.is_file() or target.stat().st_size <= 0:
-        raise SystemExit(f"Model download failed or landed at an unexpected path: {target}")
+        raise SystemExit(f"Model download failed: {target}")
     print(f"[MeetMap SCAIL] downloaded: {target}")
 PY
 
   mkdir -p "$comfyui_dir/user/default/workflows"
   cp "$meetmap_dir/workflows/meetmap_scail2_character_swap_v2.json" \
      "$comfyui_dir/user/default/workflows/meetmap_scail2_character_swap_v2.json"
+  cp "$meetmap_dir/workflows/meetmap_scail2_character_swap_v3_drive.json" \
+     "$comfyui_dir/user/default/workflows/meetmap_scail2_character_swap_v3_drive.json"
 
-  [[ -s "$comfyui_dir/user/default/workflows/meetmap_scail2_character_swap_v2.json" ]] || {
-    echo "Workflow copy failed." >&2
+  [[ -s "$comfyui_dir/user/default/workflows/meetmap_scail2_character_swap_v3_drive.json" ]] || {
+    echo "V3 workflow copy failed." >&2
     exit 1
   }
 
   echo "[MeetMap SCAIL] Installation complete."
+  echo "[MeetMap SCAIL] V3 Drive automation requires:"
+  echo "  GOOGLE_SERVICE_ACCOUNT_JSON=<service account JSON secret>"
+  echo "  MEETMAP_MOTION_DRIVE_FOLDER_ID=<Google Drive folder id>"
+  echo "  optional: MEETMAP_MOTION_PROCESSED_FOLDER_ID=<processed folder id>"
+  echo "[MeetMap SCAIL] Share the source Drive folder with the service-account email as Editor."
   echo "[MeetMap SCAIL] Restart the Pod / ComfyUI process before loading the workflow."
-  echo "[MeetMap SCAIL] Workflow: meetmap_scail2_character_swap_v2.json"
+  echo "[MeetMap SCAIL] Recommended workflow: meetmap_scail2_character_swap_v3_drive.json"
 }
 
 main "$@"
