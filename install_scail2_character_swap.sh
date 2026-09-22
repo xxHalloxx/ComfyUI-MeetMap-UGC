@@ -77,6 +77,16 @@ main() {
   echo "[MeetMap SCAIL] Installing pinned Seed-VC runtime dependencies..."
   "$python_bin" -m pip install -r "$seedvc_dir/requirements.txt"
 
+  if ! command -v ffmpeg >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1 && [[ "$(id -u)" == "0" ]]; then
+      echo "[MeetMap SCAIL] ffmpeg missing; installing system fallback decoder..."
+      apt-get update -qq
+      DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
+    else
+      echo "[MeetMap SCAIL] WARNING: ffmpeg missing; torchaudio/soundfile fallbacks remain available." >&2
+    fi
+  fi
+
   "$python_bin" -m py_compile \
     "$meetmap_dir/nodes.py" \
     "$meetmap_dir/reference_nodes.py" \
@@ -279,7 +289,7 @@ required = {
     "MeetMapSCAILLongVideoPlanner",
     "MeetMapSCAILChunkStitch",
     "MeetMapReleaseVRAMThenPassAudio",
-    "SeedVCRun",
+    "MeetMapSeedVCWithFallback",
     "MeetMapGoogleDriveMarkProcessed",
 }
 missing = sorted(required - types)
@@ -291,10 +301,42 @@ if not scail:
     raise SystemExit("Installed V5 workflow is missing SCAIL subgraph node 20.")
 widgets = scail.get("widgets_values", [])
 if "wan2.1_SCAIL_2_relight_lora_bf16.safetensors" not in widgets:
-    raise SystemExit("Installed V5 workflow does not select the relighting LoRA.")
+    raise SystemExit("Installed V5 workflow does not select the preferred relighting LoRA.")
 
-print("[MeetMap SCAIL] V5 workflow JSON validation passed.")
+subgraphs = ((workflow.get("definitions") or {}).get("subgraphs") or [])
+scail_graph = next(
+    (graph for graph in subgraphs if graph.get("id") == "ab27c382-c076-424b-b976-d1bc3f88ba12"),
+    None,
+)
+if not scail_graph:
+    raise SystemExit("Installed V5 workflow is missing the SCAIL subgraph definition.")
+subgraph_types = {node.get("type") for node in scail_graph.get("nodes", [])}
+if "MeetMapOptionalLoraModelLoader" not in subgraph_types:
+    raise SystemExit("Installed V5 workflow is missing optional relighting fallback loader.")
+
+voice = next((n for n in workflow.get("nodes", []) if n.get("id") == 36), None)
+if not voice or voice.get("type") != "MeetMapSeedVCWithFallback":
+    raise SystemExit("Installed V5 workflow is missing Seed-VC recovery wrapper.")
+
+print("[MeetMap SCAIL] V5 workflow fallback validation passed.")
 PY
+
+  if [[ -s "$voice_ref" ]]; then
+    "$python_bin" - "$voice_ref" <<'PY'
+from pathlib import Path
+import sys
+import soundfile as sf
+
+path = Path(sys.argv[1])
+info = sf.info(str(path))
+if info.frames <= 0 or info.samplerate <= 0:
+    raise SystemExit(f"Creator voice FLAC failed libsndfile validation: {path}")
+print(
+    f"[MeetMap SCAIL] Voice decoder self-test passed: "
+    f"{info.frames / info.samplerate:.2f}s @ {info.samplerate} Hz."
+)
+PY
+  fi
 
   if [[ -s "$voice_ref" ]]; then
     current_sha="$(sha256sum "$voice_ref" | awk '{print $1}')"
@@ -322,10 +364,10 @@ PY
   echo "  optional: MEETMAP_CREATOR_VOICE_SHA256=${CREATOR_VOICE_SHA256}"
   echo "[MeetMap SCAIL] The runtime refuses source folders outside MeetMap TikTok Content/Queue."
   echo "[MeetMap SCAIL] Successful sources are moved to sibling folder 'Already posted'."
-  echo "[MeetMap SCAIL] Seed-VC uses the fixed creator_01 voice from Drive/Voice References."
+  echo "[MeetMap SCAIL] Voice recovery: torchaudio -> soundfile -> ffmpeg; Seed-VC retries once then falls back to original audio."
   echo "[MeetMap SCAIL] Multi-reference: generated primary + face_front + face_angle + upper_body."
   echo "[MeetMap SCAIL] Long-video mode: native 81-frame chunks with 5-frame overlap."
-  echo "[MeetMap SCAIL] Relighting LoRA: wan2.1_SCAIL_2_relight_lora_bf16.safetensors."
+  echo "[MeetMap SCAIL] Relighting is optional at runtime: preferred LoRA is used when healthy, otherwise base SCAIL continues."
   echo "[MeetMap SCAIL] VRAM policy: unload visual models before Seed-VC."
   echo "[MeetMap SCAIL] Share the parent folder 'MeetMap TikTok Content' with the service-account email as Editor."
   echo "[MeetMap SCAIL] Restart the Pod / ComfyUI process before loading the workflow."
