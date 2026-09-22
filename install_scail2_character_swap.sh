@@ -368,8 +368,10 @@ required = {
     "MeetMapSCAILChunkStitch",
     "MeetMapReleaseVRAMThenPassAudio",
     "MeetMapSeedVCWithFallback",
+    "MeetMapSafeTrimAudio",
     "MeetMapSafeSaveVideo",
     "MeetMapGoogleDriveFinalizeSafe",
+    "MeetMapStatusCollector",
 }
 missing = sorted(required - types)
 if missing:
