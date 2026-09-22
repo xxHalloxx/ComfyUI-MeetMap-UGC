@@ -120,6 +120,7 @@ main() {
 
   # Copy repo-managed visual creator references into ComfyUI/input.
   mkdir -p "$input_dir/meetmap_refs"
+  mkdir -p "$input_dir/meetmap_fallback"
   if [[ -d "$meetmap_dir/refs/creators" ]]; then
     for creator_dir in "$meetmap_dir"/refs/creators/*; do
       [[ -d "$creator_dir" ]] || continue
@@ -362,7 +363,7 @@ path = Path(sys.argv[1])
 workflow = json.loads(path.read_text(encoding="utf-8"))
 types = {node.get("type") for node in workflow.get("nodes", [])}
 required = {
-    "MeetMapGoogleDriveLatestVideo",
+    "MeetMapGoogleDriveLatestVideoSafe",
     "MeetMapSCAILReferenceBatch",
     "MeetMapSCAILLongVideoPlanner",
     "MeetMapSCAILChunkStitch",
@@ -570,7 +571,7 @@ PY
   echo "  optional: MEETMAP_MOTION_PROCESSED_FOLDER_NAME=Already posted"
   echo "  optional: MEETMAP_CREATOR_VOICE_DRIVE_FILE_ID=${CREATOR_VOICE_DRIVE_FILE_ID}"
   echo "  optional: MEETMAP_CREATOR_VOICE_SHA256=${CREATOR_VOICE_SHA256}"
-  echo "[MeetMap SCAIL] The runtime refuses source folders outside MeetMap TikTok Content/Queue."
+  echo "[MeetMap SCAIL] Drive source loader is fail-soft: Queue first, then input/meetmap_fallback/source.mp4 if Drive fails."
   echo "[MeetMap SCAIL] Successful sources are moved to sibling folder 'Already posted'."
   echo "[MeetMap SCAIL] Voice recovery: torchaudio -> soundfile -> ffmpeg; Seed-VC retries once then falls back to original audio."
   echo "[MeetMap SCAIL] Multi-reference: generated primary + face_front + face_angle + upper_body."
