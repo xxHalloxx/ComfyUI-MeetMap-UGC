@@ -226,7 +226,7 @@ MEETMAP_MOTION_PROCESSED_FOLDER_ID=<optional processed folder id>
 
 Alternatively set `GOOGLE_SERVICE_ACCOUNT_FILE` to a mounted credential JSON path.
 
-Share the **MeetMap TikTok Content → Queue** path with the service-account email as **Editor**. The V3 loader fails closed if the configured folder is not `Queue` directly under `MeetMap TikTok Content`. Editor access is required for claim/processed metadata.
+Share the parent folder **MeetMap TikTok Content** with the service-account email as **Editor**, so the runtime can verify its direct child **Queue**. The V3 loader fails closed if the configured folder is not `Queue` directly under `MeetMap TikTok Content`. Editor access is required for claim/processed metadata.
 
 A safe variable-name template is included at:
 
