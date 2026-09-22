@@ -299,7 +299,7 @@ class MeetMapCreatorVoiceReference:
             f"{str(expected_sha256).strip().lower()}:{bool(download_if_missing)}"
         )
 
-    def load(
+    def _load_strict(
         self,
         reference_path,
         drive_file_id=None,
@@ -384,6 +384,7 @@ class MeetMapCreatorVoiceReference:
         audio = {
             "waveform": waveform.unsqueeze(0),
             "sample_rate": int(sample_rate),
+            "meetmap_voice_valid": True,
         }
         duration = waveform.shape[-1] / float(sample_rate)
         source_note = "downloaded from Drive" if downloaded else "local verified copy"
@@ -395,6 +396,40 @@ class MeetMapCreatorVoiceReference:
         if drive_name:
             status += f" Drive source='{drive_name}'."
         return (audio, status)
+
+
+    def load(
+        self,
+        reference_path,
+        drive_file_id=None,
+        expected_sha256=None,
+        download_if_missing=True,
+    ):
+        try:
+            return self._load_strict(
+                reference_path,
+                drive_file_id=drive_file_id,
+                expected_sha256=expected_sha256,
+                download_if_missing=download_if_missing,
+            )
+        except Exception as exc:
+            # Voice identity is optional in production mode. Return a marked one-second
+            # silent placeholder so downstream Seed-VC can intentionally bypass conversion
+            # and preserve the original source audio instead of killing the whole video run.
+            sample_rate = 44100
+            waveform = torch.zeros((1, 1, sample_rate), dtype=torch.float32)
+            audio = {
+                "waveform": waveform,
+                "sample_rate": sample_rate,
+                "meetmap_voice_valid": False,
+                "meetmap_voice_error": f"{type(exc).__name__}: {exc}",
+            }
+            status = (
+                "WARNING: creator voice reference unavailable; Seed-VC will be bypassed "
+                f"and original source audio retained. {type(exc).__name__}: {exc}"
+            )
+            print("[MeetMap Voice] " + status)
+            return (audio, status)
 
 
 class MeetMapSeedVCWithFallback:
@@ -440,6 +475,15 @@ class MeetMapSeedVCWithFallback:
         retry_once,
         fallback_to_source_audio,
     ):
+        if isinstance(ref_audio, dict) and ref_audio.get("meetmap_voice_valid") is False:
+            reason = ref_audio.get("meetmap_voice_error", "creator voice reference unavailable")
+            status = (
+                "WARNING: Seed-VC skipped because no valid creator voice reference is available; "
+                f"original source audio used. {reason}"
+            )
+            print("[MeetMap Voice] " + status)
+            return (source_audio, status)
+
         failures = []
         module = None
 
