@@ -50,10 +50,23 @@ Antworte ausschließlich mit genau einem JSON-Objekt und exakt diesen Feldern:
 }
 
 Regeln:
-- spoken_script_de ist vollständig Deutsch, natürliche junge Alltagssprache, 22 bis 35 Wörter, genau ein Hauptgedanke, kein Werbesprecher, keine Marketing-Floskel und kein künstlicher CTA.
-- duration_seconds ist eine ganze Zahl zwischen 10 und 15. Bei gültigem duration_override hat dieser Wert Vorrang; sonst anhand der Sprechlänge bestimmen.
-- image_prompt ist Englisch und beschreibt standardmäßig eine junge erwachsene Frau zuhause im Schlafzimmer oder Wohnzimmer, sitzend auf Bett, Sofa oder Stuhl, Smartphone-Frontkamera auf Augenhöhe, direkter Blick in die Kamera, Alltagskleidung, glaubwürdige leicht unperfekte Wohnung und natürliche Raumbeleuchtung. Sichtbare feine Poren, Haut-Mikrotextur, kleine Unreinheiten, feine Gesichtshaare, natürliche Lippen, realistische Augen und Augenbrauen, leichte Gesichtsasymmetrie, dezentes Sensorrauschen, unpoliertes Smartphone-Foto, realistische Belichtung und Stofftextur. Kein Studio, Commercial, Fashion Shoot, Stockfoto, CGI, 3D-Render, Beauty-Filter, Airbrush, Plastik- oder Wachshaut und keine perfekte Symmetrie.
-- video_prompt ist Englisch und zeigt dieselbe Person, Kleidung, Frisur, Beleuchtung und denselben Raum. Realistisches vertikales Smartphone-UGC, direkte Ansprache, natürliche Mikro-Bewegungen, stabile Identität und stabiler Hintergrund. Keine Kamerafahrt, kein dramatischer Zoom, kein Morphing und keine übertriebene Gestik.
+- spoken_script_de ist vollständig Deutsch, natürliche junge Alltagssprache, ungefähr 20 bis 42 Wörter, genau ein Hauptgedanke, kein Werbesprecher und keine Marketing-Floskel.
+- Der ERSTE Satz ist der Hook und muss sofort Aufmerksamkeit erzeugen. Er darf leicht kontrovers, überraschend oder harmlos triggernd sein, aber nie beleidigend, toxisch, politisch, diskriminierend, gefährlich oder extrem.
+- Gute Hook-Richtung: "Ganz ehrlich, neue Freunde zu finden ist schwerer, als alle so tun." / "Die meisten sind nicht zu busy – sie wissen nur nicht, wo sie Leute treffen sollen." / "Wenn du neu in der Stadt bist, bringt dir Social Media allein fast gar nichts."
+- Kein aggressiver CTA. MeetMap darf natürlich erwähnt werden.
+- duration_seconds liegt zwischen 10 und 20; die endgültige Laufzeit wird technisch aus der tatsächlichen Wortzahl des Skripts berechnet, damit das Skript die Videolänge vorgibt.
+- image_prompt ist Englisch. Beschreibe ein komplett NEUES vertikales 9:16 iPhone-UGC-Selfie derselben Creator-Person, deren Identität aus mehreren Referenzbildern übernommen wird.
+- Bei jedem Run Pose, Oberkörperhaltung, Kleidung und kleine Raumdetails klar variieren. Der Raum darf ähnlich bleiben, soll aber nicht identisch komponiert sein.
+- Auf dem Oberteil muss gut sichtbar und lesbar exakt "meetmap.world" stehen. Variiere Hoodie, T-Shirt, Sweatshirt, Zip-Hoodie oder casual top.
+- Smartphone-Frontkamera auf Augenhöhe oder leicht darunter, direkter Blick in die Kamera, glaubwürdige Alltagswohnung, natürliche leicht unperfekte Raumbeleuchtung.
+- Sichtbare feine Poren, Haut-Mikrotextur, kleine natürliche Unreinheiten, feine Gesichtshaare, realistische Augen/Augenbrauen, Stofftextur, leichtes Sensorrauschen und unpolierte Smartphone-Farben.
+- Kein Studio, Commercial, Fashion Shoot, Stockfoto, CGI, 3D-Render, Beauty-Filter, Airbrush, Plastik-/Wachshaut, perfekte Symmetrie oder Hochglanzwerbung.
+- video_prompt ist Englisch und beschreibt dieselbe neue Person/Situation wie image_prompt.
+- Video ist ein realistisches vertikales iPhone-Frontkamera-UGC-Selfie. Leichte kontinuierliche Handheld-Mikrobewegung: praktisch jeder Frame sitzt minimal anders, ohne starke Kamerafahrten.
+- Kleine natürliche Belichtungs-/Autofokus-Schwankungen, leichte unprofessionelle Farbwiedergabe, dezentes Sensorrauschen.
+- Die Person spricht Deutsch in mittlerem bis leicht langsamerem Tempo, entspannt und verständlich.
+- Natürliche Lippenbewegung, Blinzeln, Atmung, kleine Kopf-/Schulterbewegungen und maximal kleine beiläufige Handgesten.
+- Keine Schnitte, keine dramatischen Zooms, kein Morphing, kein Identity Drift, kein Outfitwechsel und kein Hintergrundwechsel während des Clips.
 - image_prompt und video_prompt müssen dieselbe Person und Situation beschreiben.
 - acting_beats enthält 3 oder höchstens 4 zeitlich lückenlose Beats, die bei 0.0 beginnen und exakt bei duration_seconds enden. Keine Überschneidungen und keine dramatischen Bewegungen.
 """.strip()
@@ -119,7 +132,7 @@ def _parse_override(value: str):
         number = int(str(value).strip())
     except (TypeError, ValueError):
         return None
-    return number if 10 <= number <= 15 else None
+    return number if 10 <= number <= 20 else None
 
 
 def _validate_acting_beats(value: Any, duration: int) -> str:
@@ -168,12 +181,11 @@ def _validate_payload(payload: Dict[str, Any], duration_override: str) -> Dict[s
     if override is not None:
         duration = override
     else:
-        try:
-            duration = int(round(float(payload["duration_seconds"])))
-        except (TypeError, ValueError):
-            words = len(re.findall(r"\b\w+[\w'-]*\b", normalized["spoken_script_de"], flags=re.UNICODE))
-            duration = int(round(words / 2.35 + 0.8))
-        duration = max(10, min(15, duration))
+        # Script length is the source of truth for runtime. 1.9 words/second
+        # yields a medium-to-slightly-slow conversational German UGC pace.
+        words = len(re.findall(r"\\b\\w+[\\w'-]*\\b", normalized["spoken_script_de"], flags=re.UNICODE))
+        duration = int(round(words / 1.9 + 0.8))
+        duration = max(10, min(20, duration))
     normalized["duration_seconds"] = duration
     normalized["acting_beats"] = _validate_acting_beats(payload.get("acting_beats"), duration)
     return normalized
@@ -531,6 +543,104 @@ class MeetMapContentGenerator:
             gc.collect()
 
 
+class MeetMapQwenImage21PromptBuilder:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image_prompt": ("STRING", {"multiline": True, "forceInput": True}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "build"
+    CATEGORY = "MeetMap/UGC"
+    DESCRIPTION = "Builds a Qwen Image 2.1 multi-reference prompt for a fresh 9:16 MeetMap UGC start frame."
+
+    def build(self, image_prompt):
+        base = str(image_prompt).strip()
+        prompt = f"""Use <image1>, <image2>, <image3>, and <image4> as multiple reference photographs of the SAME person.
+Preserve that person's exact identity: facial geometry, eyes, nose, lips, jaw, age, skin tone, hairline, hairstyle characteristics and natural asymmetry.
+Do not merge multiple people. All four references describe one single creator identity.
+
+Create a COMPLETELY NEW vertical 9:16 iPhone front-camera UGC selfie frame rather than copying any reference composition.
+Change the pose, upper-body posture, casual outfit and small room details from the reference photos while keeping the identity unmistakably the same.
+The outfit must have the exact readable text "meetmap.world" naturally printed or embroidered on the visible top.
+The result should look like an imperfect spontaneous phone photo, not advertising photography: natural skin texture, slight sensor noise, mild exposure imperfection, ordinary indoor light, casual framing and believable fabric.
+
+Generated scene brief:
+{base}
+
+Important: no beauty filter, no glamour retouching, no studio lighting, no cinematic grading, no stock-photo look, no extra person, no identity drift, no malformed hands, no misspelled brand text."""
+        return (prompt,)
+
+
+class MeetMapMiniMaxH3PromptBuilder:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_prompt": ("STRING", {"multiline": True, "forceInput": True}),
+                "spoken_script_de": ("STRING", {"multiline": True, "forceInput": True}),
+                "hook": ("STRING", {"multiline": True, "forceInput": True}),
+                "duration_seconds": ("INT", {"forceInput": True, "min": 10, "max": 20}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "FLOAT")
+    RETURN_NAMES = ("prompt", "duration_seconds")
+    FUNCTION = "build"
+    CATEGORY = "MeetMap/UGC"
+    DESCRIPTION = "Builds the final MiniMax H3 German iPhone-UGC prompt and exposes script-driven duration."
+
+    def build(self, video_prompt, spoken_script_de, hook, duration_seconds):
+        spoken = str(spoken_script_de).strip().replace('"', '\\"')
+        hook_text = str(hook).strip().replace('"', '\\"')
+        duration = float(max(10, min(20, int(duration_seconds))))
+
+        prompt = f"""{str(video_prompt).strip()}
+
+Create one continuous realistic vertical 9:16 iPhone front-camera selfie recording. This is genuine-looking user-generated content, not a polished commercial.
+
+Preserve the first frame exactly as the visual identity anchor: same person, facial identity, hair, body proportions, outfit, readable "meetmap.world" clothing branding, room and lighting. No identity drift or scene reset.
+
+The person speaks natural German at medium speed, slightly slower than typical fast social-media speech. Keep the delivery relaxed, conversational and easy to understand.
+
+Attention hook / opening attitude:
+"{hook_text}"
+
+The person says EXACTLY:
+"{spoken}"
+
+Speak the quoted German script exactly as written. Do not translate, paraphrase, add or omit words.
+
+CAMERA:
+- iPhone front camera / casual selfie framing
+- subtle continuous handheld micro-shake
+- tiny natural framing drift from frame to frame
+- minor autofocus breathing and small exposure fluctuations
+- ordinary slightly imperfect smartphone colors
+- no tripod-perfect stability, but also no violent shake
+- no cinematic dolly, orbit, crane, dramatic zoom or cuts
+
+ACTING:
+- direct eye contact most of the time
+- natural synchronized lips and jaw
+- irregular subtle blinking and breathing
+- tiny head and shoulder adjustments
+- restrained casual gestures only
+- spontaneous, understated delivery
+
+VISUAL CONSISTENCY:
+- keep face, hair, clothing, branding and background stable for the full clip
+- preserve natural pores and skin texture
+- no beauty filter, plastic skin, morphing, face changes, wardrobe changes, extra people or background changes
+
+Target duration: approximately {duration:.0f} seconds, paced to fit the exact German script naturally."""
+        return (prompt, duration)
+
+
 class MeetMapLTXPromptBuilder:
     @classmethod
     def INPUT_TYPES(cls):
@@ -613,6 +723,8 @@ NODE_CLASS_MAPPINGS = {
     "MeetMapSCAILCropPlanner": MeetMapSCAILCropPlanner,
     "MeetMapVideoBatchPlanner": MeetMapVideoBatchPlanner,
     "MeetMapContentGenerator": MeetMapContentGenerator,
+    "MeetMapQwenImage21PromptBuilder": MeetMapQwenImage21PromptBuilder,
+    "MeetMapMiniMaxH3PromptBuilder": MeetMapMiniMaxH3PromptBuilder,
     "MeetMapLTXPromptBuilder": MeetMapLTXPromptBuilder,
     "MeetMapLTXRelayPromptBuilder": MeetMapLTXRelayPromptBuilder,
 }
@@ -621,6 +733,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MeetMapSCAILCropPlanner": "MeetMap SCAIL Crop + Frame Planner",
     "MeetMapVideoBatchPlanner": "MeetMap Video Batch Planner",
     "MeetMapContentGenerator": "MeetMap Content Generator",
+    "MeetMapQwenImage21PromptBuilder": "MeetMap Qwen Image 2.1 Prompt Builder",
+    "MeetMapMiniMaxH3PromptBuilder": "MeetMap MiniMax H3 Prompt Builder",
     "MeetMapLTXPromptBuilder": "MeetMap LTX Prompt Builder",
     "MeetMapLTXRelayPromptBuilder": "MeetMap LTX Relay Prompt Builder",
 }
