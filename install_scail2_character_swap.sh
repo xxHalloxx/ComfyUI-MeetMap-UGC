@@ -156,6 +156,7 @@ from pathlib import Path
 import shutil
 import sys
 from huggingface_hub import hf_hub_download
+from safetensors import safe_open
 
 models = Path(sys.argv[1])
 token = os.environ.get("HF_TOKEN") or None
@@ -231,27 +232,57 @@ specs = [
      models / "TTS/whisper-small/vocab.json"),
 ]
 
+def valid_existing(path):
+    if not path.is_file() or path.stat().st_size <= 0:
+        return False
+    if path.suffix.lower() != ".safetensors":
+        return True
+    try:
+        with safe_open(str(path), framework="pt", device="cpu") as handle:
+            keys = list(handle.keys())
+        if not keys:
+            raise RuntimeError("no tensors")
+        return True
+    except Exception as exc:
+        print(f"[MeetMap SCAIL] removing invalid safetensors {path}: {exc}")
+        path.unlink(missing_ok=True)
+        return False
+
+
 for repo, filename, target in specs:
-    if target.is_file() and target.stat().st_size > 0:
-        print(f"[MeetMap SCAIL] present: {target}")
+    if valid_existing(target):
+        print(f"[MeetMap SCAIL] verified present: {target}")
         continue
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    downloaded = Path(
-        hf_hub_download(
-            repo_id=repo,
-            filename=filename,
-            local_dir=str(target.parent),
-            token=token,
-        )
-    )
-    if downloaded.resolve() != target.resolve():
-        target.unlink(missing_ok=True)
-        shutil.move(str(downloaded), str(target))
+    last_error = None
+    for attempt in range(1, 4):
+        try:
+            downloaded = Path(
+                hf_hub_download(
+                    repo_id=repo,
+                    filename=filename,
+                    local_dir=str(target.parent),
+                    token=token,
+                )
+            )
+            if downloaded.resolve() != target.resolve():
+                target.unlink(missing_ok=True)
+                shutil.move(str(downloaded), str(target))
+            if not valid_existing(target):
+                raise RuntimeError(f"downloaded file did not validate: {target}")
+            last_error = None
+            break
+        except Exception as exc:
+            last_error = exc
+            print(f"[MeetMap SCAIL] download attempt {attempt}/3 failed for {repo}/{filename}: {exc}")
+            if attempt < 3:
+                import time
+                time.sleep(2 ** (attempt - 1))
 
-    if not target.is_file() or target.stat().st_size <= 0:
-        raise SystemExit(f"Model download failed: {target}")
-    print(f"[MeetMap SCAIL] downloaded: {target}")
+    if last_error is not None:
+        raise SystemExit(f"Model download failed after 3 attempts: {target}: {last_error}")
+    print(f"[MeetMap SCAIL] downloaded + verified: {target}")
 PY
 
   # Verify the direct ComfyUI relighting LoRA download.
@@ -311,8 +342,14 @@ scail_graph = next(
 if not scail_graph:
     raise SystemExit("Installed V5 workflow is missing the SCAIL subgraph definition.")
 subgraph_types = {node.get("type") for node in scail_graph.get("nodes", [])}
-if "MeetMapOptionalLoraModelLoader" not in subgraph_types:
-    raise SystemExit("Installed V5 workflow is missing optional relighting fallback loader.")
+optional_lora_count = sum(
+    1 for node in scail_graph.get("nodes", [])
+    if node.get("type") == "MeetMapOptionalLoraModelLoader"
+)
+if optional_lora_count < 3:
+    raise SystemExit(
+        f"Installed V5 workflow needs 3 optional LoRA fallback loaders, found {optional_lora_count}."
+    )
 
 voice = next((n for n in workflow.get("nodes", []) if n.get("id") == 36), None)
 if not voice or voice.get("type") != "MeetMapSeedVCWithFallback":
