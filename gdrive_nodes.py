@@ -82,6 +82,41 @@ def _resolve_folder_id(value, env_name):
     return folder_id
 
 
+def _validate_folder_target(service, folder_id, required_folder_name="", required_parent_folder_id=""):
+    """Fail closed if the configured source is not the intended Drive queue folder."""
+    metadata = (
+        service.files()
+        .get(
+            fileId=folder_id,
+            fields="id,name,mimeType,parents",
+            supportsAllDrives=True,
+        )
+        .execute()
+    )
+    if metadata.get("mimeType") != "application/vnd.google-apps.folder":
+        raise ValueError("Configured Google Drive source is not a folder.")
+
+    expected_name = str(required_folder_name or "").strip()
+    if expected_name and str(metadata.get("name") or "").strip() != expected_name:
+        raise RuntimeError(
+            f"Refusing Drive source folder '{metadata.get('name')}'. Expected '{expected_name}'."
+        )
+
+    expected_parent = str(required_parent_folder_id or "").strip()
+    if expected_parent:
+        expected_parent = _resolve_folder_id(
+            expected_parent,
+            "MEETMAP_MOTION_PARENT_FOLDER_ID",
+        )
+        parents = {str(value) for value in (metadata.get("parents") or [])}
+        if expected_parent not in parents:
+            raise RuntimeError(
+                "Refusing Drive source folder because it is not inside the configured "
+                "MeetMap TikTok Content parent folder."
+            )
+    return metadata
+
+
 def _safe_filename(name):
     cleaned = Path(str(name or "reference_video.mp4")).name
     cleaned = re.sub(r"[^A-Za-z0-9._ -]+", "_", cleaned).strip(" .")
@@ -150,6 +185,26 @@ class MeetMapGoogleDriveLatestVideo:
                         "multiline": False,
                     },
                 ),
+                "required_folder_name": (
+                    "STRING",
+                    {
+                        "default": os.environ.get(
+                            "MEETMAP_MOTION_EXPECTED_FOLDER_NAME",
+                            "Queue",
+                        ),
+                        "multiline": False,
+                    },
+                ),
+                "required_parent_folder_id": (
+                    "STRING",
+                    {
+                        "default": os.environ.get(
+                            "MEETMAP_MOTION_PARENT_FOLDER_ID",
+                            "",
+                        ),
+                        "multiline": False,
+                    },
+                ),
                 "claim_mode": (
                     ["claim_required", "read_only"],
                     {"default": "claim_required"},
@@ -181,8 +236,9 @@ class MeetMapGoogleDriveLatestVideo:
     FUNCTION = "load"
     CATEGORY = "MeetMap/Automation"
     DESCRIPTION = (
-        "Downloads the newest unprocessed video from a Google Drive folder, optionally leases/"
-        "claims it to prevent duplicate concurrent renders, and returns a native ComfyUI VIDEO."
+        "Downloads only the newest unprocessed video from the verified Google Drive Queue folder, "
+        "optionally leases/claims it to prevent duplicate concurrent renders, and returns a native "
+        "ComfyUI VIDEO."
     )
 
     @classmethod
@@ -193,6 +249,8 @@ class MeetMapGoogleDriveLatestVideo:
     def load(
         self,
         folder_id,
+        required_folder_name,
+        required_parent_folder_id,
         claim_mode,
         claim_ttl_minutes,
         max_file_size_mb,
@@ -209,6 +267,12 @@ class MeetMapGoogleDriveLatestVideo:
 
         folder_id = _resolve_folder_id(folder_id, "MEETMAP_MOTION_DRIVE_FOLDER_ID")
         service = _drive()
+        source_folder = _validate_folder_target(
+            service,
+            folder_id,
+            required_folder_name=required_folder_name,
+            required_parent_folder_id=required_parent_folder_id,
+        )
 
         candidates = []
         page_token = None
@@ -248,7 +312,7 @@ class MeetMapGoogleDriveLatestVideo:
 
         if not candidates:
             raise RuntimeError(
-                "No unprocessed/unclaimed video was found in the configured Google Drive folder."
+                "No new unprocessed/unclaimed video was found in the verified Google Drive Queue folder."
             )
 
         chosen = candidates[0]
@@ -319,7 +383,8 @@ class MeetMapGoogleDriveLatestVideo:
         video = InputImpl.VideoFromFile(str(target))
         relative = target.relative_to(input_root).as_posix()
         status = (
-            f"Drive queue selected '{drive_name}' ({file_id}); "
+            f"Drive queue '{source_folder.get('name', 'Queue')}' selected new video "
+            f"'{drive_name}' ({file_id}); "
             f"{'claimed' if claim_token else 'read-only'}; local={relative}."
         )
         return (video, file_id, claim_token, drive_name, relative, status)
