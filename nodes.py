@@ -586,6 +586,71 @@ class MeetMapSequentialRunControl:
         )
 
 
+class MeetMapVideoFormatControl:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "format": (
+                    ["9:16", "4:5", "3:4", "1:1", "16:9"],
+                    {"default": "9:16"},
+                ),
+                "resolution": (
+                    ["Fast", "Standard", "High"],
+                    {"default": "Standard"},
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("INT", "INT", "STRING")
+    RETURN_NAMES = ("width", "height", "resolution_label")
+    FUNCTION = "resolve"
+    CATEGORY = "MeetMap/UGC"
+    DESCRIPTION = (
+        "App-friendly aspect-ratio and resolution selector. Outputs model-safe dimensions "
+        "for both Qwen Image 2.1 and MiniMax H3."
+    )
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
+
+    def resolve(self, format, resolution):
+        presets = {
+            "9:16": {
+                "Fast": (576, 1024),
+                "Standard": (768, 1344),
+                "High": (864, 1536),
+            },
+            "4:5": {
+                "Fast": (640, 800),
+                "Standard": (768, 960),
+                "High": (1024, 1280),
+            },
+            "3:4": {
+                "Fast": (672, 896),
+                "Standard": (768, 1024),
+                "High": (960, 1280),
+            },
+            "1:1": {
+                "Fast": (768, 768),
+                "Standard": (1024, 1024),
+                "High": (1280, 1280),
+            },
+            "16:9": {
+                "Fast": (1024, 576),
+                "Standard": (1344, 768),
+                "High": (1536, 864),
+            },
+        }
+        aspect = str(format)
+        quality = str(resolution)
+        width, height = presets.get(aspect, presets["9:16"]).get(
+            quality, presets["9:16"]["Standard"]
+        )
+        return (width, height, f"{aspect} · {quality} · {width}×{height}")
+
+
 class MeetMapContentGenerator:
     @classmethod
     def INPUT_TYPES(cls):
@@ -883,6 +948,7 @@ NODE_CLASS_MAPPINGS = {
     "MeetMapSCAILCropPlanner": MeetMapSCAILCropPlanner,
     "MeetMapVideoBatchPlanner": MeetMapVideoBatchPlanner,
     "MeetMapSequentialRunControl": MeetMapSequentialRunControl,
+    "MeetMapVideoFormatControl": MeetMapVideoFormatControl,
     "MeetMapContentGenerator": MeetMapContentGenerator,
     "MeetMapQwenImage21PromptBuilder": MeetMapQwenImage21PromptBuilder,
     "MeetMapMiniMaxH3PromptBuilder": MeetMapMiniMaxH3PromptBuilder,
@@ -894,6 +960,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MeetMapSCAILCropPlanner": "MeetMap SCAIL Crop + Frame Planner",
     "MeetMapVideoBatchPlanner": "MeetMap Video Batch Planner",
     "MeetMapSequentialRunControl": "MeetMap Sequential Video Queue",
+    "MeetMapVideoFormatControl": "MeetMap Video Format + Resolution",
     "MeetMapContentGenerator": "MeetMap Content Generator",
     "MeetMapQwenImage21PromptBuilder": "MeetMap Qwen Image 2.1 Prompt Builder",
     "MeetMapMiniMaxH3PromptBuilder": "MeetMap MiniMax H3 Prompt Builder",
