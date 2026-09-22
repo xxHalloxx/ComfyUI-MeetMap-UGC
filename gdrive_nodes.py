@@ -297,14 +297,14 @@ def _is_video_candidate(item):
     return mime.startswith("video/") or Path(name).suffix.lower() in _VIDEO_EXTENSIONS
 
 
-def _normalize_video_for_comfy(path):
+def _normalize_video_for_comfy(path, force=False):
     """Best-effort container/codec normalization. Never destroys the original download."""
     source = Path(path)
     ffmpeg = shutil.which("ffmpeg")
     ffprobe = shutil.which("ffprobe")
     notes = []
 
-    needs_normalize = source.suffix.lower() not in {".mp4", ".m4v"}
+    needs_normalize = bool(force) or source.suffix.lower() not in {".mp4", ".m4v"}
     if ffprobe:
         try:
             probe = subprocess.run(
@@ -487,7 +487,7 @@ class MeetMapGoogleDriveLatestVideo:
         candidates = []
         page_token = None
         pages_checked = 0
-        while pages_checked < 10 and not candidates:
+        while pages_checked < 10 and len(candidates) < 10:
             response = (
                 service.files()
                 .list(
@@ -515,7 +515,8 @@ class MeetMapGoogleDriveLatestVideo:
                 if _claim_active(props, claim_ttl_minutes):
                     continue
                 candidates.append(item)
-                break
+                if len(candidates) >= 10:
+                    break
             page_token = response.get("nextPageToken")
             if not page_token:
                 break
@@ -523,29 +524,6 @@ class MeetMapGoogleDriveLatestVideo:
         if not candidates:
             raise RuntimeError(
                 "No new unprocessed/unclaimed video was found in the verified Google Drive Queue folder."
-            )
-
-        chosen = candidates[0]
-        file_id = str(chosen["id"])
-        drive_name = _safe_filename(chosen.get("name"))
-        size = int(chosen.get("size") or 0)
-        max_bytes = int(max_file_size_mb) * 1024 * 1024
-        if size > max_bytes > 0:
-            raise RuntimeError(
-                f"Newest Drive video is {size / (1024*1024):.1f} MB, above the "
-                f"{int(max_file_size_mb)} MB safety limit."
-            )
-
-        claim_token = ""
-        if str(claim_mode) == "claim_required":
-            claim_token = uuid.uuid4().hex
-            _merge_app_properties(
-                service,
-                file_id,
-                {
-                    _CLAIM_ID_KEY: claim_token,
-                    _CLAIMED_AT_KEY: _iso_utc(),
-                },
             )
 
         input_root = Path(folder_paths.get_input_directory()).resolve()
@@ -558,64 +536,94 @@ class MeetMapGoogleDriveLatestVideo:
             raise ValueError("download_subfolder must stay inside ComfyUI/input.") from exc
         destination_dir.mkdir(parents=True, exist_ok=True)
 
-        local_name = f"{file_id}_{drive_name}"
-        target = (destination_dir / local_name).resolve()
-        partial = target.with_suffix(target.suffix + ".part")
+        max_bytes = int(max_file_size_mb) * 1024 * 1024
+        skipped = []
 
-        # A previously downloaded file may be reused only if its byte size still matches Drive.
-        reuse = target.is_file() and (size <= 0 or target.stat().st_size == size)
-        if not reuse:
-            request = service.files().get_media(fileId=file_id, supportsAllDrives=True)
+        for chosen in candidates:
+            file_id = str(chosen["id"])
+            drive_name = _safe_filename(chosen.get("name"))
+            size = int(chosen.get("size") or 0)
+            claim_token = ""
+
+            if size > max_bytes > 0:
+                skipped.append(
+                    f"{drive_name}: {size / (1024*1024):.1f} MB exceeds "
+                    f"{int(max_file_size_mb)} MB safety limit"
+                )
+                continue
+
             try:
-                with partial.open("wb") as handle:
-                    downloader = MediaIoBaseDownload(handle, request, chunksize=8 * 1024 * 1024)
-                    done = False
-                    while not done:
-                        _, done = downloader.next_chunk(num_retries=3)
-                if size > 0 and partial.stat().st_size != size:
-                    raise RuntimeError(
-                        f"Drive download size mismatch: expected {size}, got {partial.stat().st_size}."
+                if str(claim_mode) == "claim_required":
+                    claim_token = uuid.uuid4().hex
+                    _merge_app_properties(
+                        service,
+                        file_id,
+                        {
+                            _CLAIM_ID_KEY: claim_token,
+                            _CLAIMED_AT_KEY: _iso_utc(),
+                        },
                     )
-                partial.replace(target)
-            except Exception:
-                partial.unlink(missing_ok=True)
-                if claim_token:
-                    try:
-                        _merge_app_properties(
-                            service,
-                            file_id,
-                            {_CLAIM_ID_KEY: "", _CLAIMED_AT_KEY: ""},
-                        )
-                    except Exception:
-                        pass
-                raise
 
-        normalized_target, normalize_status = _normalize_video_for_comfy(target)
-        try:
-            video = InputImpl.VideoFromFile(str(normalized_target))
-        except Exception as first_exc:
-            # If ComfyUI rejects the normalized file object construction, retry the exact
-            # original download once before giving up. This covers codec/container edge cases.
-            if normalized_target != target:
+                local_name = f"{file_id}_{drive_name}"
+                target = (destination_dir / local_name).resolve()
+                partial = target.with_suffix(target.suffix + ".part")
+
+                # A previously downloaded file may be reused only if byte size still matches Drive.
+                reuse = target.is_file() and (size <= 0 or target.stat().st_size == size)
+                if not reuse:
+                    request = service.files().get_media(fileId=file_id, supportsAllDrives=True)
+                    with partial.open("wb") as handle:
+                        downloader = MediaIoBaseDownload(
+                            handle,
+                            request,
+                            chunksize=8 * 1024 * 1024,
+                        )
+                        done = False
+                        while not done:
+                            _, done = downloader.next_chunk(num_retries=3)
+                    if size > 0 and partial.stat().st_size != size:
+                        raise RuntimeError(
+                            f"Drive download size mismatch: expected {size}, got {partial.stat().st_size}."
+                        )
+                    partial.replace(target)
+
+                normalized_target, normalize_status = _normalize_video_for_comfy(target)
                 try:
-                    video = InputImpl.VideoFromFile(str(target))
-                    normalized_target = target
-                    normalize_status += f"; normalized VideoFromFile failed ({first_exc}); original accepted"
-                except Exception as second_exc:
-                    if claim_token:
-                        try:
-                            _merge_app_properties(
-                                service,
-                                file_id,
-                                {_CLAIM_ID_KEY: "", _CLAIMED_AT_KEY: ""},
-                            )
-                        except Exception:
-                            pass
-                    raise RuntimeError(
-                        f"Downloaded Drive video could not be opened by ComfyUI: "
-                        f"normalized={first_exc}; original={second_exc}"
-                    ) from second_exc
-            else:
+                    video = InputImpl.VideoFromFile(str(normalized_target))
+                    width, height = video.get_dimensions()
+                    if int(width) <= 0 or int(height) <= 0:
+                        raise RuntimeError(f"invalid decoded dimensions {width}x{height}")
+                except Exception as first_exc:
+                    # Force an MP4/H.264 normalization even for apparently valid MP4 files,
+                    # then verify dimensions again.
+                    forced_target, forced_status = _normalize_video_for_comfy(target, force=True)
+                    if forced_target == target:
+                        raise RuntimeError(
+                            f"ComfyUI video open failed and ffmpeg normalization was unavailable: {first_exc}"
+                        ) from first_exc
+                    video = InputImpl.VideoFromFile(str(forced_target))
+                    width, height = video.get_dimensions()
+                    if int(width) <= 0 or int(height) <= 0:
+                        raise RuntimeError(f"invalid normalized dimensions {width}x{height}")
+                    normalized_target = forced_target
+                    normalize_status += f"; forced recovery after decode error: {first_exc}; {forced_status}"
+
+                relative = normalized_target.relative_to(input_root).as_posix()
+                status = (
+                    f"Drive queue '{source_folder.get('name', 'Queue')}' selected video "
+                    f"'{drive_name}' ({file_id}); "
+                    f"{'claimed' if claim_token else 'read-only'}; local={relative}; "
+                    f"{normalize_status}; decoded={width}x{height}."
+                )
+                if skipped:
+                    status += " Earlier candidates skipped: " + " | ".join(skipped) + "."
+                print("[MeetMap Drive] " + status)
+                return (video, file_id, claim_token, drive_name, relative, status)
+
+            except Exception as exc:
+                partial_path = locals().get("partial")
+                if isinstance(partial_path, Path):
+                    partial_path.unlink(missing_ok=True)
                 if claim_token:
                     try:
                         _merge_app_properties(
@@ -623,17 +631,19 @@ class MeetMapGoogleDriveLatestVideo:
                             file_id,
                             {_CLAIM_ID_KEY: "", _CLAIMED_AT_KEY: ""},
                         )
-                    except Exception:
-                        pass
-                raise RuntimeError(f"Downloaded Drive video could not be opened by ComfyUI: {first_exc}") from first_exc
+                    except Exception as release_exc:
+                        skipped.append(
+                            f"{drive_name}: failed ({type(exc).__name__}: {exc}); "
+                            f"claim-release warning: {release_exc}"
+                        )
+                        continue
+                skipped.append(f"{drive_name}: {type(exc).__name__}: {exc}")
+                print("[MeetMap Drive] WARNING: skipping Queue candidate: " + skipped[-1])
 
-        relative = normalized_target.relative_to(input_root).as_posix()
-        status = (
-            f"Drive queue '{source_folder.get('name', 'Queue')}' selected new video "
-            f"'{drive_name}' ({file_id}); "
-            f"{'claimed' if claim_token else 'read-only'}; local={relative}; {normalize_status}."
+        raise RuntimeError(
+            "No usable Queue video remained after trying up to 10 candidates. "
+            + " | ".join(skipped)
         )
-        return (video, file_id, claim_token, drive_name, relative, status)
 
 
 class MeetMapGoogleDriveMarkProcessed:
