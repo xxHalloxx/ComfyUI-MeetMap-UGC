@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Install models + MeetMap runtime support for SCAIL-2 character swap V2/V3 (Google Drive automation).
+# Install models + MeetMap runtime support for SCAIL-2 character and Seed-VC voice swap.
 set -euo pipefail
 unset PIP_CONSTRAINT
 
 readonly MEETMAP_REPO_URL="https://github.com/xxHalloxx/ComfyUI-MeetMap-UGC.git"
 readonly SEEDVC_REPO_URL="https://github.com/billwuhao/ComfyUI_Seed-VC.git"
 readonly SEEDVC_COMMIT="02c0cb8b05121dd9e391b4287c8e28e0eb4e79a4"
+readonly CREATOR_VOICE_DRIVE_FILE_ID="1BjZUeye3fVAkA1DtvdlYdsNQzMY_gANt"
+readonly CREATOR_VOICE_SHA256="e0c502c490c74bbda5226fae8fb95206bb6facf1eb2d1d2ff025b19f9ae62fb7"
 
 find_comfyui() {
   local candidate
@@ -53,7 +55,7 @@ ensure_seedvc_repo() {
 }
 
 main() {
-  local comfyui_dir python_bin custom_nodes meetmap_dir seedvc_dir models_dir input_dir
+  local comfyui_dir python_bin custom_nodes meetmap_dir seedvc_dir models_dir input_dir voice_ref
   comfyui_dir="$(find_comfyui)"
   python_bin="$(find_python "$comfyui_dir")"
   custom_nodes="$comfyui_dir/custom_nodes"
@@ -61,6 +63,7 @@ main() {
   seedvc_dir="$custom_nodes/ComfyUI_Seed-VC"
   models_dir="$comfyui_dir/models"
   input_dir="$comfyui_dir/input"
+  voice_ref="$input_dir/meetmap_refs/creator_01/voice/reference.flac"
 
   mkdir -p "$custom_nodes"
   ensure_meetmap_repo "$meetmap_dir"
@@ -72,6 +75,7 @@ main() {
 
   echo "[MeetMap SCAIL] Installing pinned Seed-VC runtime dependencies..."
   "$python_bin" -m pip install -r "$seedvc_dir/requirements.txt"
+
   "$python_bin" -m py_compile \
     "$meetmap_dir/nodes.py" \
     "$meetmap_dir/reference_nodes.py" \
@@ -80,7 +84,7 @@ main() {
     "$meetmap_dir/__init__.py" \
     "$seedvc_dir/seedvcnode.py"
 
-  # Copy repo-managed creator identity references into the path used by V3.
+  # Copy repo-managed visual creator references into ComfyUI/input.
   mkdir -p "$input_dir/meetmap_refs"
   if [[ -d "$meetmap_dir/refs/creators" ]]; then
     for creator_dir in "$meetmap_dir"/refs/creators/*; do
@@ -90,12 +94,14 @@ main() {
       cp -a "$creator_dir/." "$input_dir/meetmap_refs/$creator_name/"
     done
   fi
+  mkdir -p "$(dirname "$voice_ref")"
 
-  "$python_bin" - "$comfyui_dir" <<'PY'
+  "$python_bin" - "$comfyui_dir" "$seedvc_dir" <<'PY'
 from pathlib import Path
 import sys
 
 root = Path(sys.argv[1])
+seedvc = Path(sys.argv[2])
 required = {
     "comfy_extras/nodes_scail.py": ["class WanSCAILToVideo", "class SCAIL2ColoredMask"],
     "comfy_extras/nodes_sam3.py": ["class SAM3_VideoTrack"],
@@ -115,18 +121,26 @@ for rel, symbols in required.items():
     for symbol in symbols:
         if symbol not in text:
             missing.append(rel + ": " + symbol)
+
+seedvc_node = seedvc / "seedvcnode.py"
+if not seedvc_node.is_file():
+    missing.append(str(seedvc_node) + " (file missing)")
+elif "class SeedVCRun" not in seedvc_node.read_text(encoding="utf-8", errors="ignore"):
+    missing.append(str(seedvc_node) + ": class SeedVCRun")
+
 if missing:
     raise SystemExit(
-        "ComfyUI is too old for the SCAIL-2 V3 workflow. Update ComfyUI first. Missing: "
+        "ComfyUI/runtime is missing required SCAIL-2 or Seed-VC support: "
         + "; ".join(missing)
     )
-print("[MeetMap SCAIL] ComfyUI capability check passed.")
+print("[MeetMap SCAIL] ComfyUI + Seed-VC capability check passed.")
 PY
 
   echo "[MeetMap SCAIL] Downloading SCAIL-2 + FLUX.2 + Seed-VC model set..."
   "$python_bin" - "$models_dir" <<'PY'
 import os
 from pathlib import Path
+import shutil
 import sys
 from huggingface_hub import hf_hub_download
 
@@ -204,7 +218,6 @@ for repo, filename, target in specs:
         print(f"[MeetMap SCAIL] present: {target}")
         continue
 
-    import shutil
     target.parent.mkdir(parents=True, exist_ok=True)
     downloaded = Path(
         hf_hub_download(
@@ -230,30 +243,38 @@ PY
      "$comfyui_dir/user/default/workflows/meetmap_scail2_character_swap_v3_drive.json"
 
   [[ -s "$comfyui_dir/user/default/workflows/meetmap_scail2_character_swap_v3_drive.json" ]] || {
-    echo "V3 workflow copy failed." >&2
+    echo "V4 workflow copy failed." >&2
     exit 1
   }
 
-  voice_ref="$input_dir/meetmap_refs/creator_01/voice/reference.wav"
   if [[ -s "$voice_ref" ]]; then
-    echo "[MeetMap SCAIL] Creator voice reference present: $voice_ref"
-  else
-    echo "[MeetMap SCAIL] WARNING: creator voice reference is missing: $voice_ref" >&2
-    echo "[MeetMap SCAIL] Add a clean reference.wav before running V3 voice conversion." >&2
+    current_sha="$(sha256sum "$voice_ref" | awk '{print $1}')"
+    if [[ "$current_sha" != "$CREATOR_VOICE_SHA256" ]]; then
+      echo "[MeetMap SCAIL] Removing stale creator voice reference with wrong SHA-256." >&2
+      rm -f "$voice_ref"
+    else
+      echo "[MeetMap SCAIL] Creator voice reference present and verified: $voice_ref"
+    fi
+  fi
+
+  if [[ ! -s "$voice_ref" ]]; then
+    echo "[MeetMap SCAIL] Creator voice will be downloaded on the first workflow run from Drive file: ${MEETMAP_CREATOR_VOICE_DRIVE_FILE_ID:-$CREATOR_VOICE_DRIVE_FILE_ID}"
   fi
 
   echo "[MeetMap SCAIL] Installation complete."
-  echo "[MeetMap SCAIL] V3 Drive automation requires:"
+  echo "[MeetMap SCAIL] V4 Drive + Seed-VC automation requires:"
   echo "  GOOGLE_SERVICE_ACCOUNT_JSON=<service account JSON secret>"
   echo "  MEETMAP_MOTION_DRIVE_FOLDER_ID=<folder id of MeetMap TikTok Content/Queue>"
   echo "  optional: MEETMAP_MOTION_EXPECTED_FOLDER_NAME=Queue"
   echo "  optional: MEETMAP_MOTION_EXPECTED_PARENT_FOLDER_NAME=MeetMap TikTok Content"
   echo "  optional: MEETMAP_MOTION_PROCESSED_FOLDER_ID=<override destination folder id>"
   echo "  optional: MEETMAP_MOTION_PROCESSED_FOLDER_NAME=Already posted"
+  echo "  optional: MEETMAP_CREATOR_VOICE_DRIVE_FILE_ID=${CREATOR_VOICE_DRIVE_FILE_ID}"
+  echo "  optional: MEETMAP_CREATOR_VOICE_SHA256=${CREATOR_VOICE_SHA256}"
   echo "[MeetMap SCAIL] The runtime refuses source folders outside MeetMap TikTok Content/Queue."
   echo "[MeetMap SCAIL] Successful sources are moved to sibling folder 'Already posted'."
-  echo "[MeetMap SCAIL] Seed-VC uses input/meetmap_refs/creator_01/voice/reference.wav as the fixed voice."
-  echo "[MeetMap SCAIL] Share the Queue path with the service-account email as Editor."
+  echo "[MeetMap SCAIL] Seed-VC uses the fixed creator_01 voice from Drive/Voice References."
+  echo "[MeetMap SCAIL] Share the parent folder 'MeetMap TikTok Content' with the service-account email as Editor."
   echo "[MeetMap SCAIL] Restart the Pod / ComfyUI process before loading the workflow."
   echo "[MeetMap SCAIL] Recommended workflow: meetmap_scail2_character_swap_v3_drive.json"
 }
