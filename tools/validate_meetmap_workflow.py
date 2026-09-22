@@ -113,6 +113,25 @@ def main():
     if not {"fallback_image", "generated_image", "use_flux_when_available"} <= flux_inputs:
         fail("lazy FLUX primary fallback is missing required inputs")
 
+    drive_loader = next((node for node in nodes if node.get("type") == "MeetMapGoogleDriveLatestVideoSafe"), None)
+    if drive_loader is None:
+        fail("safe Drive loader missing")
+    drive_inputs = {item.get("name") for item in (drive_loader.get("inputs") or [])}
+    for required in (
+        "fallback_local_video",
+        "use_local_fallback_on_drive_error",
+        "fallback_when_queue_empty",
+    ):
+        if required not in drive_inputs:
+            fail(f"safe Drive loader missing input: {required}")
+
+    final_builder = next((node for node in nodes if node.get("id") == 29), None)
+    if final_builder is None or final_builder.get("type") != "CreateVideo":
+        fail("final CreateVideo node 29 missing")
+    builder_widgets = final_builder.get("widgets_values") or []
+    if len(builder_widgets) < 4 or builder_widgets[3] != "none":
+        fail("final CreateVideo must use codec='none' so encoding is deferred to MeetMapSafeSaveVideo")
+
     node36 = next((node for node in nodes if node.get("id") == 36), None)
     if not node36 or node36.get("type") != "MeetMapSeedVCWithFallback":
         fail("node 36 must be MeetMapSeedVCWithFallback")
