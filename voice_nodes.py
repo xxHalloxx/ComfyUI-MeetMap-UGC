@@ -222,6 +222,96 @@ def _download_drive_reference(file_id, target):
     return metadata
 
 
+class MeetMapSafeTrimAudio:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "start_index": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 3600.0, "step": 0.01}),
+                "duration": ("FLOAT", {"default": 5.0, "min": 0.01, "max": 3600.0, "step": 0.01}),
+            }
+        }
+
+    RETURN_TYPES = ("AUDIO", "STRING")
+    RETURN_NAMES = ("audio", "status")
+    FUNCTION = "trim"
+    CATEGORY = "MeetMap/Voice"
+    DESCRIPTION = (
+        "Fail-soft audio trim. Missing/invalid source audio becomes silence; short audio is "
+        "zero-padded to the exact generated video duration instead of failing the run."
+    )
+
+    def trim(self, audio, start_index, duration):
+        target_duration = max(0.01, float(duration))
+        status_bits = []
+
+        if isinstance(audio, dict):
+            sample_rate = int(audio.get("sample_rate") or 44100)
+            waveform = audio.get("waveform")
+        else:
+            sample_rate = 44100
+            waveform = None
+
+        expected = max(1, int(round(target_duration * sample_rate)))
+
+        if not isinstance(waveform, torch.Tensor) or waveform.numel() == 0:
+            waveform = torch.zeros((1, 1, expected), dtype=torch.float32)
+            status = (
+                f"WARNING: source video has no usable audio; inserted {target_duration:.2f}s "
+                f"of silence at {sample_rate} Hz."
+            )
+            print("[MeetMap Voice] " + status)
+            return ({"waveform": waveform, "sample_rate": sample_rate}, status)
+
+        try:
+            if waveform.ndim == 1:
+                waveform = waveform.unsqueeze(0).unsqueeze(0)
+            elif waveform.ndim == 2:
+                waveform = waveform.unsqueeze(0)
+            elif waveform.ndim > 3:
+                waveform = waveform.reshape(-1, waveform.shape[-2], waveform.shape[-1])[:1]
+
+            start = max(0, int(round(float(start_index) * sample_rate)))
+            end = start + expected
+            total = int(waveform.shape[-1])
+
+            if start >= total:
+                trimmed = torch.zeros(
+                    (*waveform.shape[:-1], expected),
+                    dtype=waveform.dtype,
+                    device=waveform.device,
+                )
+                status_bits.append("requested audio start was beyond source; inserted silence")
+            else:
+                trimmed = waveform[..., start:min(end, total)]
+                missing = expected - int(trimmed.shape[-1])
+                if missing > 0:
+                    pad = torch.zeros(
+                        (*trimmed.shape[:-1], missing),
+                        dtype=trimmed.dtype,
+                        device=trimmed.device,
+                    )
+                    trimmed = torch.cat([trimmed, pad], dim=-1)
+                    status_bits.append(f"zero-padded {missing} sample(s)")
+
+            status = (
+                f"Source audio normalized to exactly {target_duration:.2f}s at {sample_rate} Hz."
+            )
+            if status_bits:
+                status = "WARNING: " + status + " Recovery: " + "; ".join(status_bits) + "."
+            print("[MeetMap Voice] " + status)
+            return ({"waveform": trimmed, "sample_rate": sample_rate}, status)
+        except Exception as exc:
+            waveform = torch.zeros((1, 1, expected), dtype=torch.float32)
+            status = (
+                f"WARNING: source audio trim failed; inserted {target_duration:.2f}s silence. "
+                f"{type(exc).__name__}: {exc}"
+            )
+            print("[MeetMap Voice] " + status)
+            return ({"waveform": waveform, "sample_rate": sample_rate}, status)
+
+
 class MeetMapCreatorVoiceReference:
     @classmethod
     def INPUT_TYPES(cls):
@@ -552,11 +642,13 @@ class MeetMapSeedVCWithFallback:
 
 
 NODE_CLASS_MAPPINGS = {
+    "MeetMapSafeTrimAudio": MeetMapSafeTrimAudio,
     "MeetMapCreatorVoiceReference": MeetMapCreatorVoiceReference,
     "MeetMapSeedVCWithFallback": MeetMapSeedVCWithFallback,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "MeetMapSafeTrimAudio": "MeetMap Safe Trim Audio",
     "MeetMapCreatorVoiceReference": "MeetMap Creator Voice Reference",
     "MeetMapSeedVCWithFallback": "MeetMap Seed-VC With Fallback",
 }
