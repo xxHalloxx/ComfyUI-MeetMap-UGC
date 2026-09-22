@@ -138,7 +138,8 @@
         "aspect_ratio": "16:9 (Widescreen)",
         "megapixels": 1,
         "multiple": 32
-      }
+      },
+      "title": "FORMAT & RESOLUTION"
     },
     {
       "id": 105,
@@ -184,7 +185,7 @@
           "link": 220
         },
         {
-          "label": "duration",
+          "label": "video_length_seconds",
           "name": "value_1",
           "type": "FLOAT",
           "widget": {
@@ -2354,6 +2355,18 @@
         [
           "105",
           "prompt"
+        ],
+        [
+          "105",
+          "value_1"
+        ],
+        [
+          "115",
+          "aspect_ratio"
+        ],
+        [
+          "115",
+          "megapixels"
         ]
       ],
       "outputs": [
