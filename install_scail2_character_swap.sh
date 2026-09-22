@@ -358,6 +358,120 @@ if not voice or voice.get("type") != "MeetMapSeedVCWithFallback":
 print("[MeetMap SCAIL] V5 workflow fallback validation passed.")
 PY
 
+  if [[ -n "${GOOGLE_SERVICE_ACCOUNT_JSON:-}" ]]; then
+    echo "[MeetMap SCAIL] Running Google Drive permission + creator voice preflight..."
+    "$python_bin" - "$voice_ref" <<'PY'
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import sys
+
+import soundfile as sf
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
+
+QUEUE_ID = "1oVcbIvv3w3FJK6VTunFzKMW4QRx4UIxf"
+PROCESSED_ID = "1hbZ44M0_TVxdyho4F-HxkQvPw_rkonB6"
+PARENT_ID = "1zqe7b5Nx06cJRE6MgaWomhRAv3rbZKAi"
+VOICE_ID = "1BjZUeye3fVAkA1DtvdlYdsNQzMY_gANt"
+VOICE_SHA = "e0c502c490c74bbda5226fae8fb95206bb6facf1eb2d1d2ff025b19f9ae62fb7"
+SCOPE = "https://www.googleapis.com/auth/drive"
+
+raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+try:
+    info = json.loads(raw)
+    if isinstance(info, str):
+        info = json.loads(info)
+except Exception as exc:
+    raise SystemExit(f"GOOGLE_SERVICE_ACCOUNT_JSON is invalid: {exc}")
+
+creds = service_account.Credentials.from_service_account_info(info, scopes=[SCOPE])
+service = build("drive", "v3", credentials=creds, cache_discovery=False)
+
+queue = service.files().get(
+    fileId=QUEUE_ID,
+    fields="id,name,mimeType,parents",
+    supportsAllDrives=True,
+).execute(num_retries=3)
+if queue.get("name") != "Queue":
+    raise SystemExit(f"Drive preflight: Queue ID resolved to unexpected name {queue.get('name')!r}")
+parents = [str(x) for x in (queue.get("parents") or [])]
+if PARENT_ID not in parents:
+    raise SystemExit(
+        "Drive preflight: service account can see Queue but not its expected parent "
+        "MeetMap TikTok Content. Share the parent folder with the service-account email as Editor."
+    )
+
+parent = service.files().get(
+    fileId=PARENT_ID,
+    fields="id,name,mimeType",
+    supportsAllDrives=True,
+).execute(num_retries=3)
+if parent.get("name") != "MeetMap TikTok Content":
+    raise SystemExit("Drive preflight: unexpected parent folder name.")
+
+processed = service.files().get(
+    fileId=PROCESSED_ID,
+    fields="id,name,mimeType,parents",
+    supportsAllDrives=True,
+).execute(num_retries=3)
+if processed.get("name") != "Already posted":
+    raise SystemExit("Drive preflight: processed folder ID is not 'Already posted'.")
+
+voice_meta = service.files().get(
+    fileId=VOICE_ID,
+    fields="id,name,mimeType,size",
+    supportsAllDrives=True,
+).execute(num_retries=3)
+
+target = Path(sys.argv[1])
+target.parent.mkdir(parents=True, exist_ok=True)
+
+def sha256(path):
+    h = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+needs_download = not target.is_file() or sha256(target) != VOICE_SHA
+if needs_download:
+    target.unlink(missing_ok=True)
+    partial = target.with_suffix(target.suffix + ".part")
+    partial.unlink(missing_ok=True)
+    request = service.files().get_media(fileId=VOICE_ID, supportsAllDrives=True)
+    with partial.open("wb") as handle:
+        downloader = MediaIoBaseDownload(handle, request, chunksize=4 * 1024 * 1024)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk(num_retries=3)
+    expected_size = int(voice_meta.get("size") or 0)
+    if expected_size and partial.stat().st_size != expected_size:
+        partial.unlink(missing_ok=True)
+        raise SystemExit("Drive preflight: creator voice download size mismatch.")
+    partial.replace(target)
+
+if sha256(target) != VOICE_SHA:
+    target.unlink(missing_ok=True)
+    raise SystemExit("Drive preflight: creator voice SHA-256 mismatch.")
+
+audio_info = sf.info(str(target))
+if audio_info.frames <= 0 or audio_info.samplerate <= 0:
+    raise SystemExit("Drive preflight: creator voice cannot be decoded by soundfile.")
+
+print(
+    "[MeetMap SCAIL] Drive preflight passed: Queue + parent + Already posted + "
+    f"creator voice ({audio_info.frames / audio_info.samplerate:.2f}s) are accessible."
+)
+PY
+  else
+    echo "[MeetMap SCAIL] WARNING: GOOGLE_SERVICE_ACCOUNT_JSON is not set; Drive preflight skipped." >&2
+    echo "[MeetMap SCAIL] The workflow can still start later if the secret is injected before ComfyUI runs." >&2
+  fi
+
   if [[ -s "$voice_ref" ]]; then
     "$python_bin" - "$voice_ref" <<'PY'
 from pathlib import Path
