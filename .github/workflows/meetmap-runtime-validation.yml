@@ -28,7 +28,7 @@ jobs:
 
       - name: Python syntax
         run: |
-          python -m py_compile             nodes.py             reference_nodes.py             gdrive_nodes.py             voice_nodes.py             scail_runtime_nodes.py             output_nodes.py             tools/convert_scail2_lora.py             tools/validate_meetmap_workflow.py             __init__.py
+          python -m py_compile             nodes.py             reference_nodes.py             gdrive_nodes.py             voice_nodes.py             scail_runtime_nodes.py             output_nodes.py             stream_nodes.py             tools/convert_scail2_lora.py             tools/validate_meetmap_workflow.py             __init__.py
 
       - name: Validate workflow structure
         run: |
