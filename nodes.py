@@ -596,8 +596,8 @@ class MeetMapVideoFormatControl:
                     {"default": "9:16"},
                 ),
                 "resolution": (
-                    ["Fast", "Standard", "High"],
-                    {"default": "Standard"},
+                    ["480p", "720p", "1080p"],
+                    {"default": "720p"},
                 ),
             }
         }
@@ -616,37 +616,40 @@ class MeetMapVideoFormatControl:
         return float("nan")
 
     def resolve(self, format, resolution):
+        # MiniMax H3 requires width/height in 32px steps. The UI uses familiar
+        # video-resolution labels while the actual canvas is snapped to the nearest
+        # model-safe dimensions for the selected aspect ratio.
         presets = {
             "9:16": {
-                "Fast": (576, 1024),
-                "Standard": (768, 1344),
-                "High": (864, 1536),
+                "480p": (480, 864),
+                "720p": (736, 1312),
+                "1080p": (1088, 1920),
             },
             "4:5": {
-                "Fast": (640, 800),
-                "Standard": (768, 960),
-                "High": (1024, 1280),
+                "480p": (480, 608),
+                "720p": (736, 928),
+                "1080p": (1088, 1376),
             },
             "3:4": {
-                "Fast": (672, 896),
-                "Standard": (768, 1024),
-                "High": (960, 1280),
+                "480p": (480, 640),
+                "720p": (736, 992),
+                "1080p": (1088, 1440),
             },
             "1:1": {
-                "Fast": (768, 768),
-                "Standard": (1024, 1024),
-                "High": (1280, 1280),
+                "480p": (480, 480),
+                "720p": (736, 736),
+                "1080p": (1088, 1088),
             },
             "16:9": {
-                "Fast": (1024, 576),
-                "Standard": (1344, 768),
-                "High": (1536, 864),
+                "480p": (864, 480),
+                "720p": (1312, 736),
+                "1080p": (1920, 1088),
             },
         }
         aspect = str(format)
         quality = str(resolution)
         width, height = presets.get(aspect, presets["9:16"]).get(
-            quality, presets["9:16"]["Standard"]
+            quality, presets["9:16"]["720p"]
         )
         return (width, height, f"{aspect} · {quality} · {width}×{height}")
 
