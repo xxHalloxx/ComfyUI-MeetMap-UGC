@@ -113,3 +113,25 @@ curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/
 
 This installs the pinned Lightricks ComfyUI-LTXVideo nodes, DWPose via `comfyui_controlnet_aux`, the official LTX-2.5 BF16 transformer/text encoders/VAEs/upscaler, and the Union Control IC-LoRA. Restart ComfyUI after installation.
 
+### Motion Control V2
+
+The improved workflow is:
+
+`workflows/meetmap_ltx25_motion_control_v2.json`
+
+V2 keeps the pose-only Union Control architecture and adds:
+
+- a direct **motion strength** control wired into `LTXAddVideoICLoRAGuide` (default `0.90`);
+- a **start-image / identity preview**;
+- an **extracted DWPose motion preview** before the expensive LTX render;
+- a stability-focused default negative prompt for identity drift, temporal flicker, anatomy warping and background morphing;
+- clearer stage labels for motion generation vs identity/detail refinement;
+- App Mode metadata exposing motion strength, image-input toggle, seeds and guidance controls.
+
+Suggested motion strength range:
+- `0.75–0.85`: more freedom / stronger appearance preservation;
+- `0.90`: recommended balance;
+- `0.95–1.00`: closest pose/movement adherence.
+
+The installer copies both V1 and V2, with V2 as the recommended workflow after restart.
+
