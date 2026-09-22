@@ -1,0 +1,419 @@
+import io
+import json
+import os
+import re
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+import folder_paths
+
+
+_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
+_VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi"}
+_PROCESSED_KEY = "meetmap_processed"
+_PROCESSED_AT_KEY = "meetmap_processed_at"
+_CLAIM_ID_KEY = "meetmap_claim_id"
+_CLAIMED_AT_KEY = "meetmap_claimed_at"
+
+
+def _utc_now():
+    return datetime.now(timezone.utc)
+
+
+def _iso_utc(value=None):
+    return (value or _utc_now()).isoformat().replace("+00:00", "Z")
+
+
+def _credentials():
+    """Load a service-account credential from environment without exposing it in the workflow."""
+    try:
+        from google.oauth2 import service_account
+    except ImportError as exc:
+        raise RuntimeError(
+            "Google Drive dependencies are missing. Re-run the MeetMap installer so "
+            "google-api-python-client and google-auth are installed."
+        ) from exc
+
+    raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+    path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "").strip()
+
+    if raw:
+        try:
+            info = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON.") from exc
+        return service_account.Credentials.from_service_account_info(info, scopes=[_DRIVE_SCOPE])
+
+    if path:
+        credential_path = Path(path).expanduser().resolve()
+        if not credential_path.is_file():
+            raise RuntimeError(f"GOOGLE_SERVICE_ACCOUNT_FILE does not exist: {credential_path}")
+        return service_account.Credentials.from_service_account_file(
+            str(credential_path),
+            scopes=[_DRIVE_SCOPE],
+        )
+
+    raise RuntimeError(
+        "Google Drive credentials are not configured. Set either GOOGLE_SERVICE_ACCOUNT_JSON "
+        "(recommended as a RunPod secret/env var) or GOOGLE_SERVICE_ACCOUNT_FILE. "
+        "Share only the reference-video Drive folder with that service account."
+    )
+
+
+def _drive():
+    try:
+        from googleapiclient.discovery import build
+    except ImportError as exc:
+        raise RuntimeError(
+            "google-api-python-client is missing. Re-run the MeetMap installer."
+        ) from exc
+    return build("drive", "v3", credentials=_credentials(), cache_discovery=False)
+
+
+def _resolve_folder_id(value, env_name):
+    folder_id = str(value or "").strip() or os.environ.get(env_name, "").strip()
+    if not folder_id:
+        raise ValueError(
+            f"Google Drive folder id is empty. Set the node field or {env_name}."
+        )
+    if not re.fullmatch(r"[A-Za-z0-9_-]{10,}", folder_id):
+        raise ValueError("Google Drive folder id has an unexpected format.")
+    return folder_id
+
+
+def _safe_filename(name):
+    cleaned = Path(str(name or "reference_video.mp4")).name
+    cleaned = re.sub(r"[^A-Za-z0-9._ -]+", "_", cleaned).strip(" .")
+    return cleaned or "reference_video.mp4"
+
+
+def _parse_drive_time(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _claim_active(props, ttl_minutes):
+    claim_id = str((props or {}).get(_CLAIM_ID_KEY, "")).strip()
+    claimed_at = _parse_drive_time((props or {}).get(_CLAIMED_AT_KEY))
+    if not claim_id or claimed_at is None:
+        return False
+    age = (_utc_now() - claimed_at.astimezone(timezone.utc)).total_seconds()
+    return 0 <= age < max(1, int(ttl_minutes)) * 60
+
+
+def _merge_app_properties(service, file_id, updates):
+    current = (
+        service.files()
+        .get(
+            fileId=file_id,
+            fields="id,appProperties",
+            supportsAllDrives=True,
+        )
+        .execute()
+    )
+    props = dict(current.get("appProperties") or {})
+    for key, value in updates.items():
+        props[str(key)] = "" if value is None else str(value)
+    (
+        service.files()
+        .update(
+            fileId=file_id,
+            body={"appProperties": props},
+            fields="id,appProperties,parents",
+            supportsAllDrives=True,
+        )
+        .execute()
+    )
+    return props
+
+
+def _is_video_candidate(item):
+    name = str(item.get("name") or "")
+    mime = str(item.get("mimeType") or "")
+    return mime.startswith("video/") or Path(name).suffix.lower() in _VIDEO_EXTENSIONS
+
+
+class MeetMapGoogleDriveLatestVideo:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "folder_id": (
+                    "STRING",
+                    {
+                        "default": os.environ.get("MEETMAP_MOTION_DRIVE_FOLDER_ID", ""),
+                        "multiline": False,
+                    },
+                ),
+                "claim_mode": (
+                    ["claim_required", "read_only"],
+                    {"default": "claim_required"},
+                ),
+                "claim_ttl_minutes": (
+                    "INT",
+                    {"default": 180, "min": 15, "max": 1440, "step": 15},
+                ),
+                "max_file_size_mb": (
+                    "INT",
+                    {"default": 1000, "min": 10, "max": 20000, "step": 10},
+                ),
+                "download_subfolder": (
+                    "STRING",
+                    {"default": "meetmap_drive", "multiline": False},
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("VIDEO", "STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = (
+        "video",
+        "file_id",
+        "claim_token",
+        "drive_filename",
+        "local_filename",
+        "status",
+    )
+    FUNCTION = "load"
+    CATEGORY = "MeetMap/Automation"
+    DESCRIPTION = (
+        "Downloads the newest unprocessed video from a Google Drive folder, optionally leases/"
+        "claims it to prevent duplicate concurrent renders, and returns a native ComfyUI VIDEO."
+    )
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        # The Drive queue is external state: always re-check it for a new workflow run.
+        return float("nan")
+
+    def load(
+        self,
+        folder_id,
+        claim_mode,
+        claim_ttl_minutes,
+        max_file_size_mb,
+        download_subfolder,
+    ):
+        try:
+            from googleapiclient.http import MediaIoBaseDownload
+            from comfy_api.latest import InputImpl
+        except ImportError as exc:
+            raise RuntimeError(
+                "Required Google Drive / modern ComfyUI video APIs are unavailable. "
+                "Re-run the installer and update ComfyUI."
+            ) from exc
+
+        folder_id = _resolve_folder_id(folder_id, "MEETMAP_MOTION_DRIVE_FOLDER_ID")
+        service = _drive()
+
+        response = (
+            service.files()
+            .list(
+                q=f"'{folder_id}' in parents and trashed = false",
+                spaces="drive",
+                fields=(
+                    "nextPageToken,files("
+                    "id,name,mimeType,size,modifiedTime,createdTime,appProperties,parents)"
+                ),
+                orderBy="modifiedTime desc",
+                pageSize=100,
+                includeItemsFromAllDrives=True,
+                supportsAllDrives=True,
+            )
+            .execute()
+        )
+        items = response.get("files") or []
+        candidates = []
+        for item in items:
+            if not _is_video_candidate(item):
+                continue
+            props = item.get("appProperties") or {}
+            if str(props.get(_PROCESSED_KEY, "")).lower() == "true":
+                continue
+            if _claim_active(props, claim_ttl_minutes):
+                continue
+            candidates.append(item)
+
+        if not candidates:
+            raise RuntimeError(
+                "No unprocessed/unclaimed video was found in the configured Google Drive folder."
+            )
+
+        chosen = candidates[0]
+        file_id = str(chosen["id"])
+        drive_name = _safe_filename(chosen.get("name"))
+        size = int(chosen.get("size") or 0)
+        max_bytes = int(max_file_size_mb) * 1024 * 1024
+        if size > max_bytes > 0:
+            raise RuntimeError(
+                f"Newest Drive video is {size / (1024*1024):.1f} MB, above the "
+                f"{int(max_file_size_mb)} MB safety limit."
+            )
+
+        claim_token = ""
+        if str(claim_mode) == "claim_required":
+            claim_token = uuid.uuid4().hex
+            _merge_app_properties(
+                service,
+                file_id,
+                {
+                    _CLAIM_ID_KEY: claim_token,
+                    _CLAIMED_AT_KEY: _iso_utc(),
+                },
+            )
+
+        input_root = Path(folder_paths.get_input_directory()).resolve()
+        subfolder = re.sub(r"[^A-Za-z0-9._/-]+", "_", str(download_subfolder or "meetmap_drive"))
+        subfolder = subfolder.strip("/").replace("..", "_") or "meetmap_drive"
+        destination_dir = (input_root / subfolder).resolve()
+        try:
+            destination_dir.relative_to(input_root)
+        except ValueError as exc:
+            raise ValueError("download_subfolder must stay inside ComfyUI/input.") from exc
+        destination_dir.mkdir(parents=True, exist_ok=True)
+
+        local_name = f"{file_id}_{drive_name}"
+        target = (destination_dir / local_name).resolve()
+        partial = target.with_suffix(target.suffix + ".part")
+
+        # A previously downloaded file may be reused only if its byte size still matches Drive.
+        reuse = target.is_file() and (size <= 0 or target.stat().st_size == size)
+        if not reuse:
+            request = service.files().get_media(fileId=file_id, supportsAllDrives=True)
+            try:
+                with partial.open("wb") as handle:
+                    downloader = MediaIoBaseDownload(handle, request, chunksize=8 * 1024 * 1024)
+                    done = False
+                    while not done:
+                        _, done = downloader.next_chunk()
+                if size > 0 and partial.stat().st_size != size:
+                    raise RuntimeError(
+                        f"Drive download size mismatch: expected {size}, got {partial.stat().st_size}."
+                    )
+                partial.replace(target)
+            except Exception:
+                partial.unlink(missing_ok=True)
+                if claim_token:
+                    try:
+                        _merge_app_properties(
+                            service,
+                            file_id,
+                            {_CLAIM_ID_KEY: "", _CLAIMED_AT_KEY: ""},
+                        )
+                    except Exception:
+                        pass
+                raise
+
+        video = InputImpl.VideoFromFile(str(target))
+        relative = target.relative_to(input_root).as_posix()
+        status = (
+            f"Drive queue selected '{drive_name}' ({file_id}); "
+            f"{'claimed' if claim_token else 'read-only'}; local={relative}."
+        )
+        return (video, file_id, claim_token, drive_name, relative, status)
+
+
+class MeetMapGoogleDriveMarkProcessed:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video": ("VIDEO",),
+                "file_id": ("STRING", {"forceInput": True}),
+                "claim_token": ("STRING", {"forceInput": True}),
+                "mark_processed": ("BOOLEAN", {"default": True}),
+                "processed_folder_id": (
+                    "STRING",
+                    {
+                        "default": os.environ.get("MEETMAP_MOTION_PROCESSED_FOLDER_ID", ""),
+                        "multiline": False,
+                    },
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("VIDEO", "STRING")
+    RETURN_NAMES = ("video", "status")
+    FUNCTION = "mark"
+    OUTPUT_NODE = True
+    CATEGORY = "MeetMap/Automation"
+    DESCRIPTION = (
+        "Runs after the final SaveVideo node. Marks the source Drive video processed and can "
+        "optionally move it into a processed folder. The claim token prevents another run from "
+        "finalizing a file it did not claim."
+    )
+
+    def mark(self, video, file_id, claim_token, mark_processed, processed_folder_id):
+        if not bool(mark_processed):
+            return (video, "Drive source left unchanged (mark_processed=false).")
+
+        file_id = str(file_id or "").strip()
+        if not file_id:
+            raise ValueError("file_id is empty.")
+
+        service = _drive()
+        metadata = (
+            service.files()
+            .get(
+                fileId=file_id,
+                fields="id,name,parents,appProperties",
+                supportsAllDrives=True,
+            )
+            .execute()
+        )
+        props = dict(metadata.get("appProperties") or {})
+        current_claim = str(props.get(_CLAIM_ID_KEY, "")).strip()
+        supplied_claim = str(claim_token or "").strip()
+        if current_claim and supplied_claim and current_claim != supplied_claim:
+            raise RuntimeError(
+                "Google Drive claim token mismatch. Refusing to mark another workflow run's file processed."
+            )
+
+        _merge_app_properties(
+            service,
+            file_id,
+            {
+                _PROCESSED_KEY: "true",
+                _PROCESSED_AT_KEY: _iso_utc(),
+                _CLAIM_ID_KEY: "",
+                _CLAIMED_AT_KEY: "",
+            },
+        )
+
+        move_target = str(processed_folder_id or "").strip()
+        if move_target:
+            move_target = _resolve_folder_id(
+                move_target,
+                "MEETMAP_MOTION_PROCESSED_FOLDER_ID",
+            )
+            parents = metadata.get("parents") or []
+            remove = ",".join(parents)
+            kwargs = {
+                "fileId": file_id,
+                "addParents": move_target,
+                "fields": "id,parents",
+                "supportsAllDrives": True,
+            }
+            if remove:
+                kwargs["removeParents"] = remove
+            service.files().update(**kwargs).execute()
+            status = f"Drive source marked processed and moved to folder {move_target}."
+        else:
+            status = "Drive source marked processed."
+
+        return (video, status)
+
+
+NODE_CLASS_MAPPINGS = {
+    "MeetMapGoogleDriveLatestVideo": MeetMapGoogleDriveLatestVideo,
+    "MeetMapGoogleDriveMarkProcessed": MeetMapGoogleDriveMarkProcessed,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "MeetMapGoogleDriveLatestVideo": "MeetMap Google Drive Latest Video",
+    "MeetMapGoogleDriveMarkProcessed": "MeetMap Google Drive Mark Processed",
+}
