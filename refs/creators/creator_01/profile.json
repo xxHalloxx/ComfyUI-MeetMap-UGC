@@ -39,7 +39,7 @@
   "scail_chunk_size": 81,
   "scail_chunk_overlap": 5,
   "scail_max_segments": 32,
-  "scail_relighting_lora": "scail2_relighting_lora_bf16.safetensors",
+  "scail_relighting_lora": "wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
   "scail_relighting_strength": 1,
   "runtime_vram_policy": "unload_visual_models_before_seed_vc"
 }
