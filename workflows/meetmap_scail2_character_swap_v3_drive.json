@@ -1,8 +1,8 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 8,
-  "last_node_id": 49,
-  "last_link_id": 90,
+  "revision": 9,
+  "last_node_id": 50,
+  "last_link_id": 92,
   "nodes": [
     {
       "id": 1,
@@ -1832,7 +1832,7 @@
     },
     {
       "id": 28,
-      "type": "TrimAudioDuration",
+      "type": "MeetMapSafeTrimAudio",
       "pos": [
         3200,
         1150
@@ -1869,22 +1869,27 @@
       ],
       "outputs": [
         {
-          "name": "AUDIO",
+          "name": "audio",
           "type": "AUDIO",
           "links": [
             75
           ]
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            91,
+            92
+          ]
         }
       ],
-      "properties": {
-        "Node name for S&R": "TrimAudioDuration",
-        "cnr_id": "comfy-core"
-      },
+      "properties": {},
       "widgets_values": [
         0,
         5
       ],
-      "title": "10 · TRIM SOURCE AUDIO TO GENERATED CLIP"
+      "title": "10 · SAFE SOURCE AUDIO · TRIM / SILENCE FALLBACK"
     },
     {
       "id": 29,
@@ -2909,6 +2914,11 @@
           "name": "drive_finalize",
           "type": "STRING",
           "link": 89
+        },
+        {
+          "name": "source_audio",
+          "type": "STRING",
+          "link": 92
         }
       ],
       "outputs": [
@@ -2965,6 +2975,38 @@
       "properties": {},
       "widgets_values": [],
       "title": "FINAL RUN SUMMARY"
+    },
+    {
+      "id": 50,
+      "type": "PreviewAny",
+      "pos": [
+        3270,
+        1510
+      ],
+      "size": [
+        520,
+        110
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 91
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "SOURCE AUDIO FALLBACK STATUS"
     }
   ],
   "links": [
@@ -3646,6 +3688,22 @@
       0,
       49,
       0,
+      "STRING"
+    ],
+    [
+      91,
+      28,
+      1,
+      50,
+      0,
+      "STRING"
+    ],
+    [
+      92,
+      28,
+      1,
+      48,
+      9,
       "STRING"
     ]
   ],
@@ -9423,7 +9481,8 @@
         45,
         46,
         47,
-        49
+        49,
+        50
       ]
     },
     "app": {
