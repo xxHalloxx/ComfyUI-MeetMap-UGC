@@ -141,6 +141,92 @@ def _resize_cover(image: torch.Tensor, target_height: int, target_width: int):
     return cropped.movedim(1, -1).clamp_(0.0, 1.0)
 
 
+class MeetMapLazyFluxPrimaryFallback:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "fallback_image": ("IMAGE",),
+                "generated_image": ("IMAGE", {"lazy": True}),
+                "use_flux_when_available": ("BOOLEAN", {"default": True}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("image", "status")
+    FUNCTION = "select"
+    CATEGORY = "MeetMap/UGC"
+    DESCRIPTION = (
+        "Lazy FLUX first-frame fallback. The FLUX branch is evaluated only when all required "
+        "FLUX model files are present; otherwise the exact source frame is passed to SCAIL."
+    )
+
+    @staticmethod
+    def _availability():
+        required = [
+            ("diffusion_models", "flux-2-klein-4b-fp8.safetensors"),
+            ("text_encoders", "qwen_3_4b.safetensors"),
+            ("vae", "flux2-vae.safetensors"),
+        ]
+        missing = []
+        for category, name in required:
+            try:
+                path = folder_paths.get_full_path(category, name)
+            except Exception:
+                path = None
+            if not path or not Path(path).is_file() or Path(path).stat().st_size <= 0:
+                missing.append(f"{category}/{name}")
+        return missing
+
+    def check_lazy_status(self, fallback_image, generated_image, use_flux_when_available):
+        if not bool(use_flux_when_available):
+            return []
+        missing = self._availability()
+        if missing:
+            return []
+        if generated_image is None:
+            return ["generated_image"]
+        return []
+
+    def select(self, fallback_image, generated_image, use_flux_when_available):
+        missing = self._availability()
+        if not bool(use_flux_when_available):
+            status = "FLUX first-frame stage disabled; exact source frame used as SCAIL primary reference."
+            print("[MeetMap UGC] " + status)
+            return (fallback_image, status)
+
+        if missing:
+            status = (
+                "WARNING: FLUX first-frame dependencies are missing; FLUX branch was skipped lazily "
+                "and the exact source frame is used as SCAIL primary reference. Missing: "
+                + ", ".join(missing)
+            )
+            print("[MeetMap UGC] " + status)
+            return (fallback_image, status)
+
+        if generated_image is None:
+            status = (
+                "WARNING: FLUX first-frame branch returned no image; exact source frame used "
+                "as SCAIL primary reference."
+            )
+            print("[MeetMap UGC] " + status)
+            return (fallback_image, status)
+
+        try:
+            if generated_image.ndim != 4 or generated_image.shape[0] < 1:
+                raise ValueError(f"unexpected generated image shape {tuple(generated_image.shape)}")
+            status = "FLUX first-frame generation available and used as SCAIL primary reference."
+            print("[MeetMap UGC] " + status)
+            return (generated_image, status)
+        except Exception as exc:
+            status = (
+                "WARNING: generated FLUX image was invalid; exact source frame used instead. "
+                f"{type(exc).__name__}: {exc}"
+            )
+            print("[MeetMap UGC] " + status)
+            return (fallback_image, status)
+
+
 class MeetMapSceneReferenceBatch:
     @classmethod
     def INPUT_TYPES(cls):
@@ -470,6 +556,7 @@ class MeetMapMultiReferenceConditioning:
 
 
 NODE_CLASS_MAPPINGS = {
+    "MeetMapLazyFluxPrimaryFallback": MeetMapLazyFluxPrimaryFallback,
     "MeetMapSceneReferenceBatch": MeetMapSceneReferenceBatch,
     "MeetMapSCAILReferenceBatch": MeetMapSCAILReferenceBatch,
     "MeetMapReferenceFolderLoader": MeetMapReferenceFolderLoader,
@@ -477,6 +564,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "MeetMapLazyFluxPrimaryFallback": "MeetMap Lazy FLUX Primary Fallback",
     "MeetMapSceneReferenceBatch": "MeetMap Scene + Character Reference Batch",
     "MeetMapSCAILReferenceBatch": "MeetMap SCAIL-2 Multi Reference Batch",
     "MeetMapReferenceFolderLoader": "MeetMap Reference Folder Loader",
