@@ -73,6 +73,7 @@ def main():
         "MeetMapReleaseVRAMThenPassAudio",
         "MeetMapCreatorVoiceReference",
         "MeetMapSeedVCWithFallback",
+        "MeetMapSafeTrimAudio",
         "MeetMapGoogleDriveFinalizeSafe",
         "MeetMapSafeSaveVideo",
         "MeetMapStatusCollector",
@@ -85,6 +86,8 @@ def main():
         fail("raw SeedVCRun is still present; fallback wrapper must be used")
     if "SaveVideo" in top_types:
         fail("raw SaveVideo is still present; multi-format safe saver must be used")
+    if "TrimAudioDuration" in top_types:
+        fail("raw TrimAudioDuration is still present; fail-soft audio trim must be used")
     if "MeetMapGoogleDriveMarkProcessed" in top_types:
         fail("hard Drive finalizer is still present; fail-soft finalizer must be used")
 
@@ -94,7 +97,7 @@ def main():
     collector_inputs = {item.get("name") for item in (collector.get("inputs") or [])}
     required_status_inputs = {
         "drive", "references", "chunk_plan", "stitch", "vram",
-        "voice_reference", "voice_conversion", "save", "drive_finalize",
+        "voice_reference", "voice_conversion", "save", "drive_finalize", "source_audio",
     }
     missing_status = sorted(required_status_inputs - collector_inputs)
     if missing_status:
