@@ -1,8 +1,8 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 2,
-  "last_node_id": 34,
-  "last_link_id": 58,
+  "revision": 3,
+  "last_node_id": 37,
+  "last_link_id": 62,
   "nodes": [
     {
       "id": 1,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "# MeetMap Automated Character Swap · V3\n\nThis workflow is restricted to the reference-video source:\n\n**Google Drive → MeetMap TikTok Content → Queue**\n\nAt every workflow run it re-checks the configured Queue folder and selects only the newest video that has not already been processed and is not actively claimed by another render.\n\nThe Drive node validates that the source folder is named **Queue** and that its direct parent is named **MeetMap TikTok Content**. Configure `MEETMAP_MOTION_DRIVE_FOLDER_ID` with the Queue folder ID (or enter it in the node).\n\nFiles with `meetmap_processed=true` are ignored. A file is marked processed only after SaveVideo succeeds. If no new video exists, the workflow stops instead of reusing an old source."
+        "# MeetMap Automated Character + Voice Swap · V4\n\nThis workflow is hard-bound to:\n\n**Google Drive → MeetMap TikTok Content → Queue**\n\nFor every new source video it now replaces **both the visible character and the speaking voice**.\n\nFlow:\n**Queue → claim newest new video → visual character swap → trim source audio → load fixed creator_01 voice reference → Seed-VC voice conversion → mux creator voice into final video → SaveVideo → move source to Already posted → mark processed.**\n\n### Voice identity rule\nThe target voice is always loaded from:\n`ComfyUI/input/meetmap_refs/creator_01/voice/reference.wav`\n\nSeed-VC preserves the source speech content and timing while converting its vocal identity toward this fixed reference. The same reference is reused for every video, which keeps the creator voice consistent.\n\nIf the voice reference is missing or Seed-VC fails, the final SaveVideo dependency cannot complete; therefore the Drive source is not moved to Already posted and is not marked processed.\n\n### Current audio mode\nV4 uses direct voice conversion on the trimmed source audio. Speech/background separation is intentionally left for a later V5 so this version remains simple and testable.\n\n### Queue safety\nOnly new unprocessed/unclaimed Queue videos are consumed. Successful sources are moved to **Already posted** only after the complete final video has been saved.\n\nBase SCAIL mode remains capped at 81 frames."
       ],
       "title": "README · AUTOMATIC DRIVE → START FRAME → SCAIL"
     },
@@ -1845,7 +1845,7 @@
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
-            51
+            59
           ]
         }
       ],
@@ -1857,7 +1857,7 @@
         0,
         5
       ],
-      "title": "TRIM ORIGINAL AUDIO TO GENERATED CLIP"
+      "title": "10 · TRIM SOURCE AUDIO TO GENERATED CLIP"
     },
     {
       "id": 29,
@@ -1890,7 +1890,7 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 51,
+          "link": 61,
           "shape": 7
         },
         {
@@ -1940,7 +1940,7 @@
         "sRGB",
         "auto"
       ],
-      "title": "10 · FINAL VIDEO + ORIGINAL AUDIO"
+      "title": "13 · FINAL VIDEO + CREATOR VOICE"
     },
     {
       "id": 30,
@@ -2035,7 +2035,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "## V3 automation rules\n\n**Exact source path:** MeetMap TikTok Content → Queue. The Drive node validates both folder names before consuming a file.\n\n**Only new videos:** choose the newest video without `meetmap_processed=true`; skip active claims; fail closed when no new video exists.\n\n**First-frame rule:** regenerate the first cropped source frame with FLUX.2 + creator identity references before sending it to SCAIL.\n\n**Finalization:** only after SaveVideo succeeds, resolve the sibling folder **Already posted** under **MeetMap TikTok Content**, move the source video out of Queue, then mark it processed and clear the claim. If the move fails, the source is NOT marked processed and remains eligible for retry.\n\n**Base limit:** 81 frames. Use SCAIL Extend/chunking for longer reference videos."
+        "## V4 automation rules\n\n**Source:** MeetMap TikTok Content → Queue only.\n\n**Visual identity:** FLUX.2 regenerates the first cropped frame with creator_01 identity, then SCAIL-2 carries the replacement through the motion.\n\n**Voice identity:** source audio is trimmed to the generated video duration and sent to Seed-VC. The fixed target voice is `meetmap_refs/creator_01/voice/reference.wav`. Settings: 30 diffusion steps, speed 1.0, CFG 0.7, speech mode (F0 conditioning off), pitch shift 0, unload model after conversion.\n\n**Failure behavior:** missing reference.wav, Seed-VC failure, mux failure or SaveVideo failure prevents Drive finalization.\n\n**Finalization:** after SaveVideo succeeds, move the source from Queue to **Already posted**, then mark it processed and clear the claim.\n\n**V1 audio limitation:** the complete trimmed audio track is currently passed to Seed-VC. Add vocal/background separation in a later version for clips with strong music or ambience."
       ],
       "title": "NOTES · V3 AUTOMATION"
     },
@@ -2158,6 +2158,187 @@
       },
       "widgets_values": [],
       "title": "DRIVE FINALIZATION STATUS"
+    },
+    {
+      "id": 35,
+      "type": "MeetMapCreatorVoiceReference",
+      "pos": [
+        1120,
+        1320
+      ],
+      "size": [
+        430,
+        180
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "reference_path",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "reference_path"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            60
+          ]
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            62
+          ]
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "meetmap_refs/creator_01/voice/reference.wav"
+      ],
+      "title": "11 · FIXED CREATOR VOICE · CREATOR_01"
+    },
+    {
+      "id": 36,
+      "type": "SeedVCRun",
+      "pos": [
+        1600,
+        1260
+      ],
+      "size": [
+        470,
+        420
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source_audio",
+          "type": "AUDIO",
+          "link": 59
+        },
+        {
+          "name": "ref_audio",
+          "type": "AUDIO",
+          "link": 60
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "steps"
+          }
+        },
+        {
+          "name": "speed",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "speed"
+          }
+        },
+        {
+          "name": "inference_cfg_rate",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "inference_cfg_rate"
+          }
+        },
+        {
+          "name": "f0_condition",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": {
+            "name": "f0_condition"
+          }
+        },
+        {
+          "name": "auto_f0_adjust",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": {
+            "name": "auto_f0_adjust"
+          }
+        },
+        {
+          "name": "pitch_shift",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "pitch_shift"
+          }
+        },
+        {
+          "name": "unload_model",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": {
+            "name": "unload_model"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            61
+          ]
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        30,
+        1,
+        0.7,
+        false,
+        true,
+        0,
+        true
+      ],
+      "title": "12 · SEED-VC · CONVERT TO CREATOR_01 VOICE"
+    },
+    {
+      "id": 37,
+      "type": "PreviewAny",
+      "pos": [
+        1120,
+        1530
+      ],
+      "size": [
+        430,
+        120
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 62
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "CREATOR VOICE REFERENCE STATUS"
     }
   ],
   "links": [
@@ -2562,14 +2743,6 @@
       "FLOAT"
     ],
     [
-      51,
-      28,
-      0,
-      29,
-      2,
-      "AUDIO"
-    ],
-    [
       52,
       29,
       0,
@@ -2622,6 +2795,38 @@
       33,
       1,
       34,
+      0,
+      "STRING"
+    ],
+    [
+      59,
+      28,
+      0,
+      36,
+      0,
+      "AUDIO"
+    ],
+    [
+      60,
+      35,
+      0,
+      36,
+      1,
+      "AUDIO"
+    ],
+    [
+      61,
+      36,
+      0,
+      29,
+      2,
+      "AUDIO"
+    ],
+    [
+      62,
+      35,
+      1,
+      37,
       0,
       "STRING"
     ]
@@ -8266,6 +8471,38 @@
         [
           33,
           "required_parent_folder_name"
+        ],
+        [
+          35,
+          "reference_path"
+        ],
+        [
+          36,
+          "steps"
+        ],
+        [
+          36,
+          "speed"
+        ],
+        [
+          36,
+          "inference_cfg_rate"
+        ],
+        [
+          36,
+          "f0_condition"
+        ],
+        [
+          36,
+          "auto_f0_adjust"
+        ],
+        [
+          36,
+          "pitch_shift"
+        ],
+        [
+          36,
+          "unload_model"
         ]
       ],
       "outputs": [
@@ -8277,12 +8514,13 @@
         27,
         30,
         31,
-        34
+        34,
+        37
       ]
     },
     "app": {
-      "name": "MeetMap Drive → Character Swap V3",
-      "description": "Consumes only new videos from Google Drive → MeetMap TikTok Content → Queue, performs FLUX.2 first-frame identity replacement + SCAIL-2 motion replacement, saves the result, then moves the source to Already posted and marks it processed."
+      "name": "MeetMap Drive → Character + Voice Swap V4",
+      "description": "Consumes new videos from MeetMap TikTok Content/Queue, performs FLUX.2 + SCAIL-2 character replacement, converts the trimmed source audio to the fixed creator_01 voice with Seed-VC, saves the final video, then moves the source to Already posted and marks it processed."
     }
   },
   "version": 0.4
