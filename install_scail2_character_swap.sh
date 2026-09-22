@@ -56,7 +56,7 @@ ensure_seedvc_repo() {
 }
 
 main() {
-  local comfyui_dir python_bin custom_nodes meetmap_dir seedvc_dir models_dir input_dir voice_ref
+  local comfyui_dir python_bin custom_nodes meetmap_dir seedvc_dir models_dir input_dir voice_ref seedvc_available
   comfyui_dir="$(find_comfyui)"
   python_bin="$(find_python "$comfyui_dir")"
   custom_nodes="$comfyui_dir/custom_nodes"
@@ -68,14 +68,28 @@ main() {
 
   mkdir -p "$custom_nodes"
   ensure_meetmap_repo "$meetmap_dir"
-  ensure_seedvc_repo "$seedvc_dir"
+  seedvc_available=0
+  if ensure_seedvc_repo "$seedvc_dir"; then
+    seedvc_available=1
+  elif [[ -f "$seedvc_dir/seedvcnode.py" ]]; then
+    echo "[MeetMap SCAIL] WARNING: Seed-VC update failed; keeping existing local checkout." >&2
+    seedvc_available=1
+  else
+    echo "[MeetMap SCAIL] WARNING: Seed-VC repository unavailable; original-audio fallback remains available." >&2
+  fi
 
   if ! "$python_bin" -c "import llama_cpp, huggingface_hub, googleapiclient, soundfile; from google.oauth2 import service_account" >/dev/null 2>&1; then
     "$python_bin" -m pip install -r "$meetmap_dir/requirements.txt"
   fi
 
-  echo "[MeetMap SCAIL] Installing pinned Seed-VC runtime dependencies..."
-  "$python_bin" -m pip install -r "$seedvc_dir/requirements.txt"
+  if [[ "$seedvc_available" == "1" && -f "$seedvc_dir/requirements.txt" ]]; then
+    echo "[MeetMap SCAIL] Installing pinned Seed-VC runtime dependencies..."
+    if ! "$python_bin" -m pip install -r "$seedvc_dir/requirements.txt"; then
+      echo "[MeetMap SCAIL] WARNING: Seed-VC dependency install failed; original-audio fallback remains available." >&2
+    fi
+  else
+    echo "[MeetMap SCAIL] Seed-VC dependency install skipped."
+  fi
 
   if ! command -v ffmpeg >/dev/null 2>&1; then
     if command -v apt-get >/dev/null 2>&1 && [[ "$(id -u)" == "0" ]]; then
@@ -93,9 +107,16 @@ main() {
     "$meetmap_dir/gdrive_nodes.py" \
     "$meetmap_dir/voice_nodes.py" \
     "$meetmap_dir/scail_runtime_nodes.py" \
+    "$meetmap_dir/output_nodes.py" \
     "$meetmap_dir/tools/convert_scail2_lora.py" \
-    "$meetmap_dir/__init__.py" \
-    "$seedvc_dir/seedvcnode.py"
+    "$meetmap_dir/tools/validate_meetmap_workflow.py" \
+    "$meetmap_dir/__init__.py"
+
+  if [[ -f "$seedvc_dir/seedvcnode.py" ]]; then
+    if ! "$python_bin" -m py_compile "$seedvc_dir/seedvcnode.py"; then
+      echo "[MeetMap SCAIL] WARNING: Seed-VC node compile failed; original-audio fallback remains available." >&2
+    fi
+  fi
 
   # Copy repo-managed visual creator references into ComfyUI/input.
   mkdir -p "$input_dir/meetmap_refs"
@@ -136,17 +157,20 @@ for rel, symbols in required.items():
             missing.append(rel + ": " + symbol)
 
 seedvc_node = seedvc / "seedvcnode.py"
-if not seedvc_node.is_file():
-    missing.append(str(seedvc_node) + " (file missing)")
-elif "class SeedVCRun" not in seedvc_node.read_text(encoding="utf-8", errors="ignore"):
-    missing.append(str(seedvc_node) + ": class SeedVCRun")
+seedvc_ok = (
+    seedvc_node.is_file()
+    and "class SeedVCRun" in seedvc_node.read_text(encoding="utf-8", errors="ignore")
+)
 
 if missing:
     raise SystemExit(
-        "ComfyUI/runtime is missing required SCAIL-2 or Seed-VC support: "
+        "ComfyUI/runtime is missing required SCAIL-2 core support: "
         + "; ".join(missing)
     )
-print("[MeetMap SCAIL] ComfyUI + Seed-VC capability check passed.")
+if seedvc_ok:
+    print("[MeetMap SCAIL] ComfyUI SCAIL core + Seed-VC capability check passed.")
+else:
+    print("[MeetMap SCAIL] WARNING: Seed-VC runtime unavailable; original-audio fallback will be used.")
 PY
 
   echo "[MeetMap SCAIL] Downloading SCAIL-2 + FLUX.2 + Seed-VC model set..."
@@ -232,6 +256,16 @@ specs = [
      models / "TTS/whisper-small/vocab.json"),
 ]
 
+def optional_target(path):
+    rel = path.relative_to(models).as_posix()
+    optional_exact = {
+        "loras/wan2.1_SCAIL_2_DPO_lora_bf16.safetensors",
+        "loras/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
+        "loras/wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
+    }
+    return rel.startswith("TTS/") or rel in optional_exact
+
+
 def valid_existing(path):
     if not path.is_file() or path.stat().st_size <= 0:
         return False
@@ -281,17 +315,30 @@ for repo, filename, target in specs:
                 time.sleep(2 ** (attempt - 1))
 
     if last_error is not None:
-        raise SystemExit(f"Model download failed after 3 attempts: {target}: {last_error}")
+        if optional_target(target):
+            target.unlink(missing_ok=True)
+            print(
+                f"[MeetMap SCAIL] WARNING: optional model unavailable after 3 attempts: "
+                f"{target}: {last_error}. Continuing with runtime fallback."
+            )
+            continue
+        raise SystemExit(f"Required model download failed after 3 attempts: {target}: {last_error}")
     print(f"[MeetMap SCAIL] downloaded + verified: {target}")
 PY
 
-  # Verify the direct ComfyUI relighting LoRA download.
+  # Relighting is optional. Invalid/missing copies are removed so the workflow
+  # cleanly falls back to the base SCAIL model.
   relight_out="$models_dir/loras/wan2.1_SCAIL_2_relight_lora_bf16.safetensors"
-  [[ -s "$relight_out" ]] || { echo "Relighting LoRA download failed." >&2; exit 1; }
-  actual_relight_sha="$(sha256sum "$relight_out" | awk '{print $1}')"
-  if [[ "$actual_relight_sha" != "$SCAIL2_RELIGHT_SHA256" ]]; then
-    echo "SCAIL-2 relighting safetensors SHA-256 mismatch." >&2
-    exit 1
+  if [[ -s "$relight_out" ]]; then
+    actual_relight_sha="$(sha256sum "$relight_out" | awk '{print $1}')"
+    if [[ "$actual_relight_sha" != "$SCAIL2_RELIGHT_SHA256" ]]; then
+      echo "[MeetMap SCAIL] WARNING: relighting LoRA checksum mismatch; continuing without relighting." >&2
+      rm -f "$relight_out"
+    else
+      echo "[MeetMap SCAIL] Relighting LoRA checksum verified."
+    fi
+  else
+    echo "[MeetMap SCAIL] WARNING: relighting LoRA unavailable; continuing without relighting." >&2
   fi
   rm -rf "$models_dir/loras/.meetmap_scail2_relighting"
 
@@ -321,7 +368,8 @@ required = {
     "MeetMapSCAILChunkStitch",
     "MeetMapReleaseVRAMThenPassAudio",
     "MeetMapSeedVCWithFallback",
-    "MeetMapGoogleDriveMarkProcessed",
+    "MeetMapSafeSaveVideo",
+    "MeetMapGoogleDriveFinalizeSafe",
 }
 missing = sorted(required - types)
 if missing:
@@ -360,7 +408,7 @@ PY
 
   if [[ -n "${GOOGLE_SERVICE_ACCOUNT_JSON:-}" ]]; then
     echo "[MeetMap SCAIL] Running Google Drive permission + creator voice preflight..."
-    "$python_bin" - "$voice_ref" <<'PY'
+    if ! "$python_bin" - "$voice_ref" <<'PY'
 import hashlib
 import io
 import json
@@ -467,13 +515,16 @@ print(
     f"creator voice ({audio_info.frames / audio_info.samplerate:.2f}s) are accessible."
 )
 PY
+    then
+      echo "[MeetMap SCAIL] WARNING: Drive preflight failed; installation continues. Fix Drive access before a Drive-sourced render." >&2
+    fi
   else
     echo "[MeetMap SCAIL] WARNING: GOOGLE_SERVICE_ACCOUNT_JSON is not set; Drive preflight skipped." >&2
     echo "[MeetMap SCAIL] The workflow can still start later if the secret is injected before ComfyUI runs." >&2
   fi
 
   if [[ -s "$voice_ref" ]]; then
-    "$python_bin" - "$voice_ref" <<'PY'
+    if ! "$python_bin" - "$voice_ref" <<'PY'
 from pathlib import Path
 import sys
 import soundfile as sf
@@ -487,6 +538,10 @@ print(
     f"{info.frames / info.samplerate:.2f}s @ {info.samplerate} Hz."
 )
 PY
+    then
+      echo "[MeetMap SCAIL] WARNING: local creator voice failed decoder self-test; removing it for runtime redownload/fallback." >&2
+      rm -f "$voice_ref"
+    fi
   fi
 
   if [[ -s "$voice_ref" ]]; then
