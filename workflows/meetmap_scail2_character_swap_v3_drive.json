@@ -1,6 +1,6 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 12,
+  "revision": 13,
   "last_node_id": 52,
   "last_link_id": 96,
   "nodes": [
@@ -1998,9 +1998,9 @@
         30,
         "auto",
         "sRGB",
-        "auto"
+        "none"
       ],
-      "title": "13 · FINAL VIDEO + CREATOR VOICE"
+      "title": "13 · BUILD VIDEO COMPONENTS · NO EARLY ENCODE"
     },
     {
       "id": 30,
