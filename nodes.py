@@ -527,12 +527,53 @@ class MeetMapSequentialRunControl:
         batch_folder = f"batch_{base & 0xFFFFFFFF:08x}"
         filename_prefix = f"{root}/{batch_folder}/video_{index:02d}"
 
+        themes = [
+            "new in the city / meeting new people",
+            "tennis or casual sports with new people",
+            "running group or active meetup",
+            "coffee meetup or spontaneous social break",
+            "book club or calm interest-based meetup",
+            "photo walk or creative city activity",
+            "language exchange or international meetup",
+            "weekend plans and finding something to do",
+            "picnic, park meetup or casual outdoor hangout",
+            "beach volleyball or summer group activity",
+        ]
+        outfits = [
+            "casual hoodie",
+            "simple oversized T-shirt",
+            "zip hoodie",
+            "crewneck sweatshirt",
+            "light casual long-sleeve top",
+            "relaxed T-shirt with open overshirt",
+            "minimal sporty sweatshirt",
+            "casual fitted T-shirt",
+            "lightweight hoodie",
+            "simple everyday top",
+        ]
+        poses = [
+            "sitting casually on the edge of a bed",
+            "sitting back on a sofa",
+            "standing near a bedroom desk",
+            "leaning lightly against a wall",
+            "sitting on a desk chair",
+            "standing near a window",
+            "sitting cross-legged on a sofa or bed",
+            "standing casually beside a shelf",
+            "sitting slightly turned toward the phone",
+            "standing in a relaxed doorway position",
+        ]
+        theme = themes[(index - 1) % len(themes)]
+        outfit = outfits[(index - 1) % len(outfits)]
+        pose = poses[(index - 1) % len(poses)]
+
         variation_note = (
             f"Sequential video {index} of {count}, batch seed {base}. "
-            "Create a clearly unique MeetMap UGC concept for this exact iteration. "
-            "Choose a different main topic/activity, opening hook wording, outfit, pose, "
-            "room composition and small visual details from the other videos in this queue. "
-            "Do not reuse a generic opening sentence. Keep the same creator identity only."
+            f"Assigned unique MeetMap theme for this iteration: {theme}. "
+            f"Assigned outfit direction: {outfit}; assigned pose direction: {pose}. "
+            "Create a clearly distinct hook, German script, room composition and small visual details. "
+            "Do not switch to another iteration's assigned theme and do not reuse a generic opening sentence. "
+            "Keep the same creator identity only; everything else may vary naturally."
         )
         progress = f"Video {index} / {count}"
         return (
