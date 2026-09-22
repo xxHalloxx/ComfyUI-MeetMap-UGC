@@ -393,6 +393,8 @@ class MeetMapStatusCollector:
                 "drive_finalize": ("STRING", {"forceInput": True}),
                 "source_audio": ("STRING", {"forceInput": True}),
                 "first_frame": ("STRING", {"forceInput": True}),
+                "source_stream": ("STRING", {"forceInput": True}),
+                "composite": ("STRING", {"forceInput": True}),
             }
         }
 
@@ -415,6 +417,8 @@ class MeetMapStatusCollector:
         drive_finalize,
         source_audio,
         first_frame,
+        source_stream,
+        composite,
     ):
         items = [
             ("drive", drive),
@@ -428,6 +432,8 @@ class MeetMapStatusCollector:
             ("drive_finalize", drive_finalize),
             ("source_audio", source_audio),
             ("first_frame", first_frame),
+            ("source_stream", source_stream),
+            ("composite", composite),
         ]
 
         warning_terms = (
