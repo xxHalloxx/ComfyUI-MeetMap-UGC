@@ -4,6 +4,8 @@ import re
 from pathlib import Path
 
 import folder_paths
+import soundfile as sf
+import torch
 import torchaudio
 
 from .gdrive_nodes import _drive
@@ -218,10 +220,22 @@ class MeetMapCreatorVoiceReference:
 
         try:
             waveform, sample_rate = torchaudio.load(str(target))
-        except Exception as exc:
-            raise RuntimeError(
-                f"Could not decode creator voice reference: {target}"
-            ) from exc
+        except Exception as torchaudio_exc:
+            # Torchaudio 2.10+ may delegate decoding to TorchCodec. RunPod images do
+            # not always ship torchcodec, while libsndfile can decode our pinned FLAC
+            # directly. Fall back without adding a CUDA/FFmpeg-sensitive dependency.
+            try:
+                samples, sample_rate = sf.read(
+                    str(target),
+                    dtype="float32",
+                    always_2d=True,
+                )
+                waveform = torch.from_numpy(samples.T.copy())
+            except Exception as soundfile_exc:
+                raise RuntimeError(
+                    f"Could not decode creator voice reference: {target}. "
+                    f"torchaudio={torchaudio_exc}; soundfile={soundfile_exc}"
+                ) from soundfile_exc
 
         if waveform.numel() == 0 or waveform.shape[-1] < max(1, int(sample_rate)):
             raise RuntimeError(
