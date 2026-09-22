@@ -1,0 +1,3 @@
+# Minimal runtime dependencies for meetmap_minimax_h3_i2v_app_v2.json
+llama-cpp-python>=0.3.16,<0.4
+huggingface_hub>=0.27,<2
