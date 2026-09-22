@@ -188,7 +188,8 @@ Google Drive / MeetMap TikTok Content / Queue
   -> feathered stitch back into untouched original frames
   -> restore original source audio
   -> SaveVideo
-  -> mark Drive source processed / optionally move it to processed folder
+  -> move Drive source from Queue to Already posted
+  -> mark source processed and clear its claim
 ```
 
 ### Critical first-frame rule
@@ -206,7 +207,7 @@ V3 deliberately does **not** use the raw first frame as the SCAIL reference imag
 - downloads it atomically into `ComfyUI/input/meetmap_drive/`;
 - returns a native ComfyUI `VIDEO`, Drive file id and claim token.
 
-`MeetMapGoogleDriveMarkProcessed` runs only after the final `SaveVideo` dependency succeeds. It verifies the claim token, marks the Drive file processed, clears the claim, and can optionally move the source video into a processed folder.
+`MeetMapGoogleDriveMarkProcessed` runs only after the final `SaveVideo` dependency succeeds. It verifies the claim token, resolves the sibling **Already posted** folder under **MeetMap TikTok Content**, moves the source out of **Queue**, then marks it processed and clears the claim. If the move fails, it refuses to mark the file processed so the source remains retryable.
 
 If a render fails before finalization, the claim expires and the source video becomes eligible again after the lease timeout.
 
@@ -221,7 +222,8 @@ GOOGLE_SERVICE_ACCOUNT_JSON=<full service account JSON>
 MEETMAP_MOTION_DRIVE_FOLDER_ID=<folder id of MeetMap TikTok Content/Queue>
 MEETMAP_MOTION_EXPECTED_FOLDER_NAME=Queue
 MEETMAP_MOTION_EXPECTED_PARENT_FOLDER_NAME=MeetMap TikTok Content
-MEETMAP_MOTION_PROCESSED_FOLDER_ID=<optional processed folder id>
+MEETMAP_MOTION_PROCESSED_FOLDER_ID=<optional destination override; normally empty>
+MEETMAP_MOTION_PROCESSED_FOLDER_NAME=Already posted
 ```
 
 Alternatively set `GOOGLE_SERVICE_ACCOUNT_FILE` to a mounted credential JSON path.
