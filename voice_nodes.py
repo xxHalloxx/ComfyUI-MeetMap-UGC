@@ -11,6 +11,8 @@ from .gdrive_nodes import _drive
 
 _DEFAULT_VOICE_DRIVE_FILE_ID = "1BjZUeye3fVAkA1DtvdlYdsNQzMY_gANt"
 _DEFAULT_VOICE_SHA256 = "e0c502c490c74bbda5226fae8fb95206bb6facf1eb2d1d2ff025b19f9ae62fb7"
+_LEGACY_REFERENCE_PATH = "meetmap_refs/creator_01/voice/reference.wav"
+_DEFAULT_REFERENCE_PATH = "meetmap_refs/creator_01/voice/reference.flac"
 
 
 def _sha256(path):
@@ -24,6 +26,8 @@ def _sha256(path):
 def _safe_input_target(reference_path):
     input_root = Path(folder_paths.get_input_directory()).resolve()
     rel = str(reference_path or "").strip().replace("\\", "/")
+    if rel == _LEGACY_REFERENCE_PATH:
+        rel = _DEFAULT_REFERENCE_PATH
     if not rel:
         raise ValueError("Creator voice reference path is empty.")
 
@@ -97,10 +101,12 @@ class MeetMapCreatorVoiceReference:
                 "reference_path": (
                     "STRING",
                     {
-                        "default": "meetmap_refs/creator_01/voice/reference.flac",
+                        "default": _DEFAULT_REFERENCE_PATH,
                         "multiline": False,
                     },
                 ),
+            },
+            "optional": {
                 "drive_file_id": (
                     "STRING",
                     {
@@ -122,7 +128,7 @@ class MeetMapCreatorVoiceReference:
                     },
                 ),
                 "download_if_missing": ("BOOLEAN", {"default": True}),
-            }
+            },
         }
 
     RETURN_TYPES = ("AUDIO", "STRING")
@@ -138,11 +144,19 @@ class MeetMapCreatorVoiceReference:
     def IS_CHANGED(
         cls,
         reference_path,
-        drive_file_id,
-        expected_sha256,
-        download_if_missing,
+        drive_file_id=None,
+        expected_sha256=None,
+        download_if_missing=True,
         **kwargs,
     ):
+        drive_file_id = drive_file_id or os.environ.get(
+            "MEETMAP_CREATOR_VOICE_DRIVE_FILE_ID",
+            _DEFAULT_VOICE_DRIVE_FILE_ID,
+        )
+        expected_sha256 = expected_sha256 or os.environ.get(
+            "MEETMAP_CREATOR_VOICE_SHA256",
+            _DEFAULT_VOICE_SHA256,
+        )
         try:
             _, _, target = _safe_input_target(reference_path)
         except Exception:
@@ -159,10 +173,19 @@ class MeetMapCreatorVoiceReference:
     def load(
         self,
         reference_path,
-        drive_file_id,
-        expected_sha256,
-        download_if_missing,
+        drive_file_id=None,
+        expected_sha256=None,
+        download_if_missing=True,
     ):
+        drive_file_id = drive_file_id or os.environ.get(
+            "MEETMAP_CREATOR_VOICE_DRIVE_FILE_ID",
+            _DEFAULT_VOICE_DRIVE_FILE_ID,
+        )
+        expected_sha256 = expected_sha256 or os.environ.get(
+            "MEETMAP_CREATOR_VOICE_SHA256",
+            _DEFAULT_VOICE_SHA256,
+        )
+
         _, rel, target = _safe_input_target(reference_path)
         expected_hash = str(expected_sha256 or "").strip().lower()
         if expected_hash and not re.fullmatch(r"[0-9a-f]{64}", expected_hash):
@@ -205,7 +228,6 @@ class MeetMapCreatorVoiceReference:
                 "Creator voice reference is empty or shorter than one second."
             )
 
-        # Use one stable mono target voice even if a future file is accidentally stereo.
         if waveform.shape[0] > 1:
             waveform = waveform.mean(dim=0, keepdim=True)
 
