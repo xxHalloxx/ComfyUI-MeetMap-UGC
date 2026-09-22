@@ -75,6 +75,7 @@ def main():
         "MeetMapSeedVCWithFallback",
         "MeetMapGoogleDriveFinalizeSafe",
         "MeetMapSafeSaveVideo",
+        "MeetMapStatusCollector",
     }
     top_types = {node.get("type") for node in nodes}
     missing = sorted(required_top - top_types)
@@ -86,6 +87,18 @@ def main():
         fail("raw SaveVideo is still present; multi-format safe saver must be used")
     if "MeetMapGoogleDriveMarkProcessed" in top_types:
         fail("hard Drive finalizer is still present; fail-soft finalizer must be used")
+
+    collector = next((node for node in nodes if node.get("type") == "MeetMapStatusCollector"), None)
+    if collector is None:
+        fail("final MeetMapStatusCollector is missing")
+    collector_inputs = {item.get("name") for item in (collector.get("inputs") or [])}
+    required_status_inputs = {
+        "drive", "references", "chunk_plan", "stitch", "vram",
+        "voice_reference", "voice_conversion", "save", "drive_finalize",
+    }
+    missing_status = sorted(required_status_inputs - collector_inputs)
+    if missing_status:
+        fail("status collector missing inputs: " + ", ".join(missing_status))
 
     node36 = next((node for node in nodes if node.get("id") == 36), None)
     if not node36 or node36.get("type") != "MeetMapSeedVCWithFallback":
