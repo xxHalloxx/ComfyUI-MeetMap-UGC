@@ -82,8 +82,8 @@ def _resolve_folder_id(value, env_name):
     return folder_id
 
 
-def _validate_folder_target(service, folder_id, required_folder_name="", required_parent_folder_id=""):
-    """Fail closed if the configured source is not the intended Drive queue folder."""
+def _validate_folder_target(service, folder_id, required_folder_name="", required_parent_folder_name=""):
+    """Fail closed unless the configured source is the intended Drive queue path."""
     metadata = (
         service.files()
         .get(
@@ -102,17 +102,29 @@ def _validate_folder_target(service, folder_id, required_folder_name="", require
             f"Refusing Drive source folder '{metadata.get('name')}'. Expected '{expected_name}'."
         )
 
-    expected_parent = str(required_parent_folder_id or "").strip()
-    if expected_parent:
-        expected_parent = _resolve_folder_id(
-            expected_parent,
-            "MEETMAP_MOTION_PARENT_FOLDER_ID",
-        )
-        parents = {str(value) for value in (metadata.get("parents") or [])}
-        if expected_parent not in parents:
+    expected_parent_name = str(required_parent_folder_name or "").strip()
+    if expected_parent_name:
+        parent_ids = [str(value) for value in (metadata.get("parents") or []) if str(value).strip()]
+        if not parent_ids:
             raise RuntimeError(
-                "Refusing Drive source folder because it is not inside the configured "
-                "MeetMap TikTok Content parent folder."
+                f"Refusing Drive source folder '{metadata.get('name')}' because it has no parent."
+            )
+        parent_names = []
+        for parent_id in parent_ids:
+            parent = (
+                service.files()
+                .get(
+                    fileId=parent_id,
+                    fields="id,name,mimeType",
+                    supportsAllDrives=True,
+                )
+                .execute()
+            )
+            parent_names.append(str(parent.get("name") or "").strip())
+        if expected_parent_name not in parent_names:
+            raise RuntimeError(
+                f"Refusing Drive source folder '{metadata.get('name')}'. "
+                f"Expected parent '{expected_parent_name}', got {parent_names or ['<unknown>']}."
             )
     return metadata
 
@@ -195,12 +207,12 @@ class MeetMapGoogleDriveLatestVideo:
                         "multiline": False,
                     },
                 ),
-                "required_parent_folder_id": (
+                "required_parent_folder_name": (
                     "STRING",
                     {
                         "default": os.environ.get(
-                            "MEETMAP_MOTION_PARENT_FOLDER_ID",
-                            "",
+                            "MEETMAP_MOTION_EXPECTED_PARENT_FOLDER_NAME",
+                            "MeetMap TikTok Content",
                         ),
                         "multiline": False,
                     },
@@ -250,7 +262,7 @@ class MeetMapGoogleDriveLatestVideo:
         self,
         folder_id,
         required_folder_name,
-        required_parent_folder_id,
+        required_parent_folder_name,
         claim_mode,
         claim_ttl_minutes,
         max_file_size_mb,
@@ -271,7 +283,7 @@ class MeetMapGoogleDriveLatestVideo:
             service,
             folder_id,
             required_folder_name=required_folder_name,
-            required_parent_folder_id=required_parent_folder_id,
+            required_parent_folder_name=required_parent_folder_name,
         )
 
         candidates = []
