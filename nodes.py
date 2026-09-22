@@ -179,6 +179,119 @@ def _validate_payload(payload: Dict[str, Any], duration_override: str) -> Dict[s
     return normalized
 
 
+
+class MeetMapSCAILCropPlanner:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "fps": ("FLOAT", {"forceInput": True, "min": 0.01, "max": 240.0}),
+                "crop_x": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
+                "crop_y": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
+                "crop_width": ("INT", {"default": 512, "min": 32, "max": 16384, "step": 32}),
+                "crop_height": ("INT", {"default": 960, "min": 32, "max": 16384, "step": 32}),
+                "frame_count": ("INT", {"default": 81, "min": 1, "max": 4093, "step": 4}),
+                "feather_pixels": ("INT", {"default": 32, "min": 0, "max": 256, "step": 1}),
+            }
+        }
+
+    RETURN_TYPES = ("INT", "INT", "INT", "INT", "INT", "FLOAT", "INT", "INT", "INT", "STRING")
+    RETURN_NAMES = (
+        "crop_x",
+        "crop_y",
+        "crop_width",
+        "crop_height",
+        "frame_count",
+        "duration_seconds",
+        "feather_pixels",
+        "source_width",
+        "source_height",
+        "status",
+    )
+    FUNCTION = "plan"
+    CATEGORY = "MeetMap/SCAIL"
+    DESCRIPTION = (
+        "Clamps a SCAIL-2 crop to the source frame, snaps width/height to multiples of 32, "
+        "normalizes frame count to 4n+1, and computes the exact trimmed audio duration."
+    )
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
+
+    def plan(
+        self,
+        image,
+        fps,
+        crop_x,
+        crop_y,
+        crop_width,
+        crop_height,
+        frame_count,
+        feather_pixels,
+    ):
+        if image is None or getattr(image, "ndim", 0) != 4:
+            raise ValueError("MeetMapSCAILCropPlanner requires an IMAGE batch.")
+
+        total_frames = int(image.shape[0])
+        source_height = int(image.shape[1])
+        source_width = int(image.shape[2])
+        if source_width < 32 or source_height < 32:
+            raise ValueError(
+                f"Source video is too small for SCAIL-2: {source_width}x{source_height}."
+            )
+
+        def snap32(value, maximum):
+            maximum32 = (int(maximum) // 32) * 32
+            if maximum32 < 32:
+                raise ValueError("Source dimension cannot provide a 32-pixel-aligned crop.")
+            value = max(32, min(int(value), maximum32))
+            return max(32, (value // 32) * 32)
+
+        width = snap32(crop_width, source_width)
+        height = snap32(crop_height, source_height)
+
+        x = max(0, int(crop_x))
+        y = max(0, int(crop_y))
+        x = min(x, source_width - width)
+        y = min(y, source_height - height)
+
+        available = max(1, total_frames)
+        requested = max(1, min(int(frame_count), available))
+        # Wan/SCAIL temporal latents operate on 4n+1 frame counts. Never request
+        # more frames than are actually available from the source video.
+        if requested > 1:
+            requested = ((requested - 1) // 4) * 4 + 1
+        requested = max(1, min(requested, available))
+
+        rate = float(fps)
+        if not math.isfinite(rate) or rate <= 0:
+            raise ValueError(f"Invalid source FPS: {fps}")
+        duration = float(requested) / rate
+
+        feather = max(0, int(feather_pixels))
+        feather = min(feather, width // 2, height // 2)
+
+        status = (
+            f"SCAIL crop {width}x{height} at x={x}, y={y}; "
+            f"{requested}/{total_frames} frames at {rate:.3f} fps "
+            f"({duration:.3f}s); feather={feather}px."
+        )
+        return (
+            x,
+            y,
+            width,
+            height,
+            requested,
+            duration,
+            feather,
+            source_width,
+            source_height,
+            status,
+        )
+
+
 class MeetMapVideoBatchPlanner:
     @classmethod
     def INPUT_TYPES(cls):
@@ -496,6 +609,7 @@ Maintain direct eye contact most of the time, natural blinking, subtle breathing
 
 
 NODE_CLASS_MAPPINGS = {
+    "MeetMapSCAILCropPlanner": MeetMapSCAILCropPlanner,
     "MeetMapVideoBatchPlanner": MeetMapVideoBatchPlanner,
     "MeetMapContentGenerator": MeetMapContentGenerator,
     "MeetMapLTXPromptBuilder": MeetMapLTXPromptBuilder,
@@ -503,6 +617,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "MeetMapSCAILCropPlanner": "MeetMap SCAIL Crop + Frame Planner",
     "MeetMapVideoBatchPlanner": "MeetMap Video Batch Planner",
     "MeetMapContentGenerator": "MeetMap Content Generator",
     "MeetMapLTXPromptBuilder": "MeetMap LTX Prompt Builder",
