@@ -1,8 +1,8 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 4,
-  "last_node_id": 45,
-  "last_link_id": 78,
+  "revision": 5,
+  "last_node_id": 46,
+  "last_link_id": 79,
   "nodes": [
     {
       "id": 1,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "# MeetMap Automated Character + Voice Swap · V5\n\n**Source:** Google Drive → MeetMap TikTok Content → Queue\n\nV5 upgrades:\n- Native SCAIL-2 multi-reference: generated primary frame + face_front + face_angle + upper_body.\n- Official SCAIL-2 Relighting LoRA in replacement mode at strength 1.0.\n- Automatic long-video segmentation: 81-frame chunks, 5-frame overlap, 76-frame stride, deterministic overlap removal after rendering.\n- Full source processing up to 2401 frames; no longer hard-capped to one 81-frame segment.\n- Visual models are forcibly unloaded before Seed-VC starts, reducing peak VRAM.\n- Fixed creator_01 Seed-VC voice remains unchanged.\n- Drive finalization still runs only after the complete final SaveVideo succeeds.\n\nIf any visual chunk, stitch, VRAM barrier, Seed-VC, mux or SaveVideo step fails, the Drive source remains retryable and is not moved to Already posted."
+        "# MeetMap Automated Character + Voice Swap · V5\n\n**Source:** Google Drive → MeetMap TikTok Content → Queue\n\nV5 upgrades:\n- Native SCAIL-2 multi-reference: generated primary frame + face_front + face_angle + upper_body.\n- Optional SCAIL-2 Relighting LoRA at strength 1.0; missing/corrupt relighting automatically falls back to the base SCAIL model.\n- Automatic long-video segmentation: 81-frame chunks, 5-frame overlap, 76-frame stride, deterministic overlap removal after rendering.\n- Full source processing up to 2401 frames; no longer hard-capped to one 81-frame segment.\n- Visual models are forcibly unloaded before Seed-VC starts, reducing peak VRAM.\n- Fixed creator_01 Seed-VC voice uses 3-stage decoding; Seed-VC retries once and can fall back to original source audio.\n- Drive finalization still runs only after the complete final SaveVideo succeeds.\n\nIf any visual chunk, stitch, VRAM barrier, Seed-VC, mux or SaveVideo step fails, the Drive source remains retryable and is not moved to Already posted."
       ],
       "title": "README · AUTOMATIC DRIVE → START FRAME → SCAIL"
     },
@@ -1350,9 +1350,9 @@
           "link": null
         },
         {
-          "label": "relighting_lora",
+          "label": "relighting_lora_optional",
           "name": "lora_name_2",
-          "type": "COMBO",
+          "type": "STRING",
           "widget": {
             "name": "lora_name_2"
           },
@@ -1445,7 +1445,7 @@
         "lora_name_2": "wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
         "relighting_strength": 1
       },
-      "title": "8 · SCAIL-2 · MULTI-REF + RELIGHT + AUTO CHUNKS"
+      "title": "8 · SCAIL-2 · MULTI-REF + OPTIONAL RELIGHT + AUTO CHUNKS"
     },
     {
       "id": 21,
@@ -2227,13 +2227,13 @@
       ],
       "properties": {},
       "widgets_values": [
-        "meetmap_refs/creator_01/voice/reference.wav"
+        "meetmap_refs/creator_01/voice/reference.flac"
       ],
       "title": "11 · FIXED CREATOR VOICE · CREATOR_01"
     },
     {
       "id": 36,
-      "type": "SeedVCRun",
+      "type": "MeetMapSeedVCWithFallback",
       "pos": [
         1600,
         1260
@@ -2311,6 +2311,22 @@
           "widget": {
             "name": "unload_model"
           }
+        },
+        {
+          "name": "retry_once",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": {
+            "name": "retry_once"
+          }
+        },
+        {
+          "name": "fallback_to_source_audio",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": {
+            "name": "fallback_to_source_audio"
+          }
         }
       ],
       "outputs": [
@@ -2319,6 +2335,13 @@
           "type": "AUDIO",
           "links": [
             61
+          ]
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            79
           ]
         }
       ],
@@ -2330,9 +2353,11 @@
         false,
         true,
         0,
+        true,
+        true,
         true
       ],
-      "title": "12 · SEED-VC · AFTER VISUAL VRAM RELEASE"
+      "title": "12 · SEED-VC · RETRY + ORIGINAL-AUDIO FALLBACK"
     },
     {
       "id": 37,
@@ -2741,6 +2766,38 @@
       "properties": {},
       "widgets_values": [],
       "title": "VRAM CLEANUP STATUS"
+    },
+    {
+      "id": 46,
+      "type": "PreviewAny",
+      "pos": [
+        4350,
+        1260
+      ],
+      "size": [
+        510,
+        120
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 79
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "SEED-VC RECOVERY STATUS"
     }
   ],
   "links": [
@@ -3327,6 +3384,14 @@
       45,
       0,
       "STRING"
+    ],
+    [
+      79,
+      36,
+      1,
+      46,
+      0,
+      "STRING"
     ]
   ],
   "groups": [
@@ -3710,11 +3775,11 @@
           {
             "id": "0f4f9ef9-5794-4b15-a744-38f76b70a241",
             "name": "lora_name_2",
-            "type": "COMBO",
+            "type": "STRING",
             "linkIds": [
               567
             ],
-            "label": "relighting_lora",
+            "label": "relighting_lora_optional",
             "pos": [
               -290.984375,
               4674
@@ -6507,69 +6572,86 @@
           },
           {
             "id": 364,
-            "type": "LoraLoaderModelOnly",
+            "type": "MeetMapOptionalLoraModelLoader",
             "pos": [
               670,
               3390
             ],
             "size": [
-              330,
-              130
+              410,
+              190
             ],
             "flags": {},
             "order": 42,
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "model",
                 "name": "model",
                 "type": "MODEL",
                 "link": 566
               },
               {
-                "localized_name": "lora_name",
-                "name": "lora_name",
-                "type": "COMBO",
+                "name": "preferred_lora",
+                "type": "STRING",
                 "widget": {
-                  "name": "lora_name"
+                  "name": "preferred_lora"
                 },
                 "link": 567
               },
               {
-                "localized_name": "strength_model",
                 "name": "strength_model",
                 "type": "FLOAT",
                 "widget": {
                   "name": "strength_model"
                 },
                 "link": 568
+              },
+              {
+                "name": "enabled",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "enabled"
+                },
+                "link": null
+              },
+              {
+                "name": "fallback_loras",
+                "type": "STRING",
+                "widget": {
+                  "name": "fallback_loras"
+                },
+                "link": null
               }
             ],
             "outputs": [
               {
-                "localized_name": "MODEL",
-                "name": "MODEL",
+                "name": "model",
                 "type": "MODEL",
                 "links": [
                   563,
                   564
                 ]
+              },
+              {
+                "name": "status",
+                "type": "STRING",
+                "links": []
               }
             ],
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
-              "cnr_id": "comfy-core",
-              "ver": "0.24.0"
-            },
+            "properties": {},
             "widgets_values": [
               "wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
-              1
+              1,
+              true,
+              "scail2_relighting_lora_bf16.safetensors"
             ],
             "widgets_values_named": {
-              "lora_name": "wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
-              "strength_model": 1
+              "preferred_lora": "wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
+              "strength_model": 1,
+              "enabled": true,
+              "fallback_loras": "scail2_relighting_lora_bf16.safetensors"
             },
-            "title": "Official SCAIL-2 Relighting LoRA"
+            "title": "OPTIONAL RELIGHTING · AUTO FALLBACK TO BASE MODEL"
           }
         ],
         "groups": [
@@ -7381,7 +7463,7 @@
             "origin_slot": 23,
             "target_id": 364,
             "target_slot": 1,
-            "type": "COMBO"
+            "type": "STRING"
           },
           {
             "id": 568,
@@ -9033,6 +9115,14 @@
         [
           41,
           "overlap_frames"
+        ],
+        [
+          36,
+          "retry_once"
+        ],
+        [
+          36,
+          "fallback_to_source_audio"
         ]
       ],
       "outputs": [
@@ -9049,7 +9139,8 @@
         39,
         43,
         44,
-        45
+        45,
+        46
       ]
     },
     "app": {
