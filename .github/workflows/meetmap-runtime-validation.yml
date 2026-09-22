@@ -1,0 +1,45 @@
+name: MeetMap Runtime Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.py"
+      - "**.json"
+      - "**.sh"
+      - ".github/workflows/meetmap-runtime-validation.yml"
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bash syntax
+        run: bash -n install_scail2_character_swap.sh
+
+      - name: Python syntax
+        run: |
+          python -m py_compile             nodes.py             reference_nodes.py             gdrive_nodes.py             voice_nodes.py             scail_runtime_nodes.py             output_nodes.py             tools/convert_scail2_lora.py             tools/validate_meetmap_workflow.py             __init__.py
+
+      - name: Validate workflow structure
+        run: |
+          python tools/validate_meetmap_workflow.py             workflows/meetmap_scail2_character_swap_v3_drive.json
+
+      - name: Parse all workflow JSON
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path("workflows").glob("*.json"):
+              json.loads(path.read_text(encoding="utf-8"))
+              print("valid json:", path)
+          PY
