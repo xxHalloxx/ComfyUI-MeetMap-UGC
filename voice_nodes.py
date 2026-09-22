@@ -339,11 +339,17 @@ class MeetMapCreatorVoiceReference:
 
         actual_hash = _sha256(target)
         if expected_hash and actual_hash != expected_hash:
-            target.unlink(missing_ok=True)
-            raise RuntimeError(
-                "Creator voice reference SHA-256 mismatch. The downloaded/local audio is not "
-                "the approved creator_01 voice version."
-            )
+            if bool(download_if_missing):
+                target.unlink(missing_ok=True)
+                metadata = _download_drive_reference(drive_file_id, target)
+                downloaded = True
+                actual_hash = _sha256(target)
+            if expected_hash and actual_hash != expected_hash:
+                target.unlink(missing_ok=True)
+                raise RuntimeError(
+                    "Creator voice reference SHA-256 mismatch even after automatic redownload. "
+                    "Refusing to use unapproved/corrupt creator audio."
+                )
 
         try:
             waveform, sample_rate, decoder = _decode_audio_file(target)
