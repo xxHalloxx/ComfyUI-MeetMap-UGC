@@ -220,7 +220,7 @@ def _validate_payload(payload: Dict[str, Any], duration_override: str) -> Dict[s
     else:
         # Script length is the source of truth for runtime. 1.9 words/second
         # yields a medium-to-slightly-slow conversational German UGC pace.
-        words = len(re.findall(r"\\b\\w+[\\w'-]*\\b", normalized["spoken_script_de"], flags=re.UNICODE))
+        words = len(re.findall(r"\b\w+[\w'-]*\b", normalized["spoken_script_de"], flags=re.UNICODE))
         duration = int(round(words / 1.9 + 0.8))
         duration = max(10, min(20, duration))
     normalized["duration_seconds"] = duration
