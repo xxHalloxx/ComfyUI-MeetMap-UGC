@@ -135,3 +135,34 @@ Suggested motion strength range:
 
 The installer copies both V1 and V2, with V2 as the recommended workflow after restart.
 
+## SCAIL-2 Character Swap V2
+
+The integrated character-replacement workflow is:
+
+`workflows/meetmap_scail2_character_swap_v2.json`
+
+It uses the current ComfyUI **SCAIL-2 Int8 Base** replacement graph as its generation core and adds a MeetMap wrapper for exact cropping, safe frame planning, previews, automatic stitch-back, and original-audio preservation.
+
+Pipeline:
+
+```text
+full source video
+  -> exact crop planner (32px aligned, max 81 frames)
+  -> cropped driving video
+  -> SCAIL-2 replacement (SAM3 masks + Int8 model + DPO + LightX2V)
+  -> feathered crop composite back into untouched full frames
+  -> original source audio trimmed to generated duration
+  -> final full-frame video
+```
+
+The Base workflow is deliberately capped at 81 frames. Longer clips should use the SCAIL-2 Extend/chunked architecture rather than increasing the Base graph.
+
+Install its models/runtime support with:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/install_scail2_character_swap.sh \
+  | env -u PIP_CONSTRAINT HF_TOKEN="${HF_TOKEN:-}" bash
+```
+
+Restart ComfyUI / the RunPod Pod after installation.
+
