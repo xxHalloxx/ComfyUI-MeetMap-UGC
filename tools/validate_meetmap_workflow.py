@@ -78,6 +78,8 @@ def main():
         "MeetMapGoogleDriveFinalizeSafe",
         "MeetMapSafeSaveVideo",
         "MeetMapStatusCollector",
+        "MeetMapSourceStreamPrepare",
+        "MeetMapStreamCompositeVideo",
     }
     top_types = {node.get("type") for node in nodes}
     missing = sorted(required_top - top_types)
@@ -91,6 +93,10 @@ def main():
         fail("raw SaveVideo is still present; multi-format safe saver must be used")
     if "TrimAudioDuration" in top_types:
         fail("raw TrimAudioDuration is still present; fail-soft audio trim must be used")
+    if "GetVideoComponents" in top_types:
+        fail("GetVideoComponents is forbidden in V6 because it materializes the full video")
+    if "ImageCompositeMasked" in top_types:
+        fail("full-frame tensor compositor is forbidden in V6; streaming compositor must be used")
     if "MeetMapGoogleDriveMarkProcessed" in top_types:
         fail("hard Drive finalizer is still present; fail-soft finalizer must be used")
 
@@ -101,6 +107,7 @@ def main():
     required_status_inputs = {
         "drive", "references", "chunk_plan", "stitch", "vram",
         "voice_reference", "voice_conversion", "save", "drive_finalize", "source_audio", "first_frame",
+        "source_stream", "composite",
     }
     missing_status = sorted(required_status_inputs - collector_inputs)
     if missing_status:
@@ -125,12 +132,17 @@ def main():
         if required not in drive_inputs:
             fail(f"safe Drive loader missing input: {required}")
 
-    final_builder = next((node for node in nodes if node.get("id") == 29), None)
-    if final_builder is None or final_builder.get("type") != "CreateVideo":
-        fail("final CreateVideo node 29 missing")
-    builder_widgets = final_builder.get("widgets_values") or []
-    if len(builder_widgets) < 4 or builder_widgets[3] != "none":
-        fail("final CreateVideo must use codec='none' so encoding is deferred to MeetMapSafeSaveVideo")
+    stream_prepare = next((node for node in nodes if node.get("type") == "MeetMapSourceStreamPrepare"), None)
+    if stream_prepare is None:
+        fail("streaming source preparation node is missing")
+    stream_outputs = {item.get("name") for item in (stream_prepare.get("outputs") or [])}
+    for required in ("pose_video", "source_video", "first_frame", "audio", "fps", "frame_count", "status"):
+        if required not in stream_outputs:
+            fail(f"stream source node missing output: {required}")
+
+    stream_composite = next((node for node in nodes if node.get("type") == "MeetMapStreamCompositeVideo"), None)
+    if stream_composite is None:
+        fail("streaming final composite node is missing")
 
     node36 = next((node for node in nodes if node.get("id") == 36), None)
     if not node36 or node36.get("type") != "MeetMapSeedVCWithFallback":
