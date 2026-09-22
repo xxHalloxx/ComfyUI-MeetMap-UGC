@@ -286,3 +286,31 @@ Restart the Pod / ComfyUI process after installation.
 - **Failure safety:** a failed chunk, relighting pass, stitch, VRAM cleanup, Seed-VC conversion, mux or SaveVideo prevents Drive finalization. The source remains in Queue/retryable.
 - The Drive loader still enforces its maximum source file size and sanitizes downloaded filenames/paths.
 
+
+
+## MiniMax H3 V2 — one-command RunPod setup
+
+The standalone workflow file is maintained in `xxHalloxx/Comfy-UI-Workflow` as:
+
+`meetmap_minimax_h3_i2v_app_v2.json`
+
+Intended RunPod flow:
+
+1. Download that JSON from GitHub.
+2. Start a current RunPod ComfyUI preset.
+3. Run exactly this in the RunPod Web Terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/bootstrap_minimax_h3_v2.sh | bash
+```
+
+4. Restart the Pod / ComfyUI process.
+5. Open the downloaded `meetmap_minimax_h3_i2v_app_v2.json`.
+6. Set **LOOP · NUMBER OF VIDEOS (SEQUENTIAL) → video_count** from 1 to 10.
+7. Press **Run** once.
+
+The loop controller deliberately uses ComfyUI's native multiple-prompt queue rather than list/batch mapping. Every iteration is therefore a complete independent workflow job. Video 1 can finish, appear in history and be downloaded while Video 2+ are still queued/running.
+
+Per iteration the controller provides a unique content seed, iteration number, filename and an assigned MeetMap topic/outfit/pose direction. The content LLM then creates a new hook, German script, Qwen Image 2.1 prompt and H3 prompt. Qwen generates a fresh creator image and H3 renders the corresponding video.
+
+Default `video_count` is 3. The workflow saves each result under its own numbered filename inside a batch folder.
