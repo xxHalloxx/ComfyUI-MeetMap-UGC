@@ -108,6 +108,7 @@ main() {
     "$meetmap_dir/voice_nodes.py" \
     "$meetmap_dir/scail_runtime_nodes.py" \
     "$meetmap_dir/output_nodes.py" \
+    "$meetmap_dir/stream_nodes.py" \
     "$meetmap_dir/tools/convert_scail2_lora.py" \
     "$meetmap_dir/tools/validate_meetmap_workflow.py" \
     "$meetmap_dir/__init__.py"
@@ -377,6 +378,8 @@ required = {
     "MeetMapSafeSaveVideo",
     "MeetMapGoogleDriveFinalizeSafe",
     "MeetMapStatusCollector",
+    "MeetMapSourceStreamPrepare",
+    "MeetMapStreamCompositeVideo",
 }
 missing = sorted(required - types)
 if missing:
@@ -580,6 +583,8 @@ PY
   echo "[MeetMap SCAIL] Voice recovery: torchaudio -> soundfile -> ffmpeg; Seed-VC retries once then falls back to original audio."
   echo "[MeetMap SCAIL] FLUX first-frame stage is lazy/optional; missing FLUX assets fall back to the exact source frame."
   echo "[MeetMap SCAIL] Multi-reference: primary + face_front + face_angle + upper_body."
+  echo "[MeetMap SCAIL] V6 streaming: source video stays file-backed; no GetVideoComponents full-video materialization."
+  echo "[MeetMap SCAIL] Final full-frame composite uses FFmpeg streaming; on failure crop-only fallback is saved."
   echo "[MeetMap SCAIL] Long-video mode: native 81-frame chunks with 5-frame overlap."
   echo "[MeetMap SCAIL] Relighting is optional at runtime: preferred LoRA is used when healthy, otherwise base SCAIL continues."
   echo "[MeetMap SCAIL] VRAM policy: unload visual models before Seed-VC."
