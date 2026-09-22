@@ -190,7 +190,7 @@ def _download_drive_reference(file_id, target):
             fields="id,name,mimeType,size,modifiedTime",
             supportsAllDrives=True,
         )
-        .execute()
+        .execute(num_retries=3)
     )
     if metadata.get("mimeType") == "application/vnd.google-apps.folder":
         raise RuntimeError("Creator voice Drive file ID points to a folder, not audio.")
@@ -208,7 +208,7 @@ def _download_drive_reference(file_id, target):
             )
             done = False
             while not done:
-                _, done = downloader.next_chunk()
+                _, done = downloader.next_chunk(num_retries=3)
         expected_size = int(metadata.get("size") or 0)
         if expected_size and partial.stat().st_size != expected_size:
             raise RuntimeError(
