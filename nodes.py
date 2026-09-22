@@ -191,7 +191,7 @@ class MeetMapSCAILCropPlanner:
                 "crop_y": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
                 "crop_width": ("INT", {"default": 512, "min": 32, "max": 16384, "step": 32}),
                 "crop_height": ("INT", {"default": 960, "min": 32, "max": 16384, "step": 32}),
-                "frame_count": ("INT", {"default": 81, "min": 1, "max": 4093, "step": 4}),
+                "frame_count": ("INT", {"default": 81, "min": 1, "max": 81, "step": 4}),
                 "feather_pixels": ("INT", {"default": 32, "min": 0, "max": 256, "step": 1}),
             }
         }
@@ -258,7 +258,7 @@ class MeetMapSCAILCropPlanner:
         y = min(y, source_height - height)
 
         available = max(1, total_frames)
-        requested = max(1, min(int(frame_count), available))
+        requested = max(1, min(int(frame_count), available, 81))
         # Wan/SCAIL temporal latents operate on 4n+1 frame counts. Never request
         # more frames than are actually available from the source video.
         if requested > 1:
