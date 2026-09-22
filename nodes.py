@@ -137,33 +137,70 @@ def _parse_override(value: str):
 
 def _validate_acting_beats(value: Any, duration: int) -> str:
     if isinstance(value, str):
-        value = json.loads(value)
-    if not isinstance(value, list) or not 1 <= len(value) <= 4:
-        raise ValueError("acting_beats must contain one to four beats.")
-    beats = []
-    for beat in value:
-        if not isinstance(beat, dict) or any(field not in beat for field in BEAT_FIELDS):
-            raise ValueError("Every acting beat needs start, end, expression and movement.")
         try:
-            start = float(beat["start"])
-            end = float(beat["end"])
-        except (TypeError, ValueError) as exc:
-            raise ValueError("Acting beat times must be numeric.") from exc
-        if not isinstance(beat["expression"], str) or not isinstance(beat["movement"], str):
-            raise ValueError("Acting beat expression and movement must be strings.")
-        beats.append({"start": start, "end": end, "expression": beat["expression"].strip(), "movement": beat["movement"].strip()})
-    beats.sort(key=lambda item: item["start"])
-    tolerance = 0.06
-    if abs(beats[0]["start"]) > tolerance or abs(beats[-1]["end"] - duration) > tolerance:
-        raise ValueError("Acting beats must cover the complete duration.")
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            value = None
+
+    fallback = [
+        {"expression": "relaxed and attentive", "movement": "subtle blink and minimal head movement"},
+        {"expression": "slightly more animated", "movement": "tiny eyebrow raise and one restrained casual gesture"},
+        {"expression": "calm and friendly", "movement": "small head tilt and steady eye contact"},
+    ]
+
+    parsed = []
+    if isinstance(value, list) and 1 <= len(value) <= 4:
+        for beat in value:
+            if not isinstance(beat, dict) or any(field not in beat for field in BEAT_FIELDS):
+                parsed = []
+                break
+            try:
+                start = float(beat["start"])
+                end = float(beat["end"])
+            except (TypeError, ValueError):
+                parsed = []
+                break
+            expression = beat.get("expression")
+            movement = beat.get("movement")
+            if not isinstance(expression, str) or not isinstance(movement, str):
+                parsed = []
+                break
+            parsed.append(
+                {
+                    "weight": max(0.1, end - start),
+                    "expression": expression.strip(),
+                    "movement": movement.strip(),
+                }
+            )
+
+    if not parsed:
+        parsed = [
+            {"weight": 1.0, "expression": item["expression"], "movement": item["movement"]}
+            for item in fallback
+        ]
+
+    total_weight = sum(item["weight"] for item in parsed)
+    cursor = 0.0
+    beats = []
+    for index, item in enumerate(parsed):
+        if index == len(parsed) - 1:
+            beat_end = float(duration)
+        else:
+            beat_end = cursor + (float(duration) * item["weight"] / total_weight)
+            beat_end = round(beat_end, 2)
+        beats.append(
+            {
+                "start": round(cursor, 2),
+                "end": beat_end,
+                "expression": item["expression"],
+                "movement": item["movement"],
+            }
+        )
+        cursor = beat_end
+
     beats[0]["start"] = 0.0
     beats[-1]["end"] = float(duration)
-    for previous, current in zip(beats, beats[1:]):
-        if abs(previous["end"] - current["start"]) > tolerance or current["start"] < previous["end"] - tolerance:
-            raise ValueError("Acting beats must be contiguous and non-overlapping.")
-        current["start"] = previous["end"]
     return json.dumps(beats, ensure_ascii=False, separators=(",", ":"))
-
 
 def _validate_payload(payload: Dict[str, Any], duration_override: str) -> Dict[str, Any]:
     missing = [key for key in REQUIRED_FIELDS if key not in payload]
