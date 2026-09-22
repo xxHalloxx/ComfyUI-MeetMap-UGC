@@ -73,8 +73,8 @@ def main():
         "MeetMapReleaseVRAMThenPassAudio",
         "MeetMapCreatorVoiceReference",
         "MeetMapSeedVCWithFallback",
-        "MeetMapGoogleDriveMarkProcessed",
-        "SaveVideo",
+        "MeetMapGoogleDriveFinalizeSafe",
+        "MeetMapSafeSaveVideo",
     }
     top_types = {node.get("type") for node in nodes}
     missing = sorted(required_top - top_types)
@@ -82,6 +82,10 @@ def main():
         fail("missing required top-level nodes: " + ", ".join(missing))
     if "SeedVCRun" in top_types:
         fail("raw SeedVCRun is still present; fallback wrapper must be used")
+    if "SaveVideo" in top_types:
+        fail("raw SaveVideo is still present; multi-format safe saver must be used")
+    if "MeetMapGoogleDriveMarkProcessed" in top_types:
+        fail("hard Drive finalizer is still present; fail-soft finalizer must be used")
 
     node36 = next((node for node in nodes if node.get("id") == 36), None)
     if not node36 or node36.get("type") != "MeetMapSeedVCWithFallback":
