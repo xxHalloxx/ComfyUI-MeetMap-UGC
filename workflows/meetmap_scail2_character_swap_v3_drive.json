@@ -1,6 +1,6 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 9,
+  "revision": 10,
   "last_node_id": 50,
   "last_link_id": 92,
   "nodes": [
@@ -28,7 +28,7 @@
     },
     {
       "id": 2,
-      "type": "MeetMapGoogleDriveLatestVideo",
+      "type": "MeetMapGoogleDriveLatestVideoSafe",
       "pos": [
         -2050,
         590
@@ -96,6 +96,22 @@
           "widget": {
             "name": "download_subfolder"
           }
+        },
+        {
+          "name": "fallback_local_video",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "fallback_local_video"
+          }
+        },
+        {
+          "name": "use_local_fallback_on_drive_error",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": {
+            "name": "use_local_fallback_on_drive_error"
+          }
         }
       ],
       "outputs": [
@@ -147,9 +163,11 @@
         "claim_required",
         180,
         1000,
-        "meetmap_drive"
+        "meetmap_drive",
+        "meetmap_fallback/source.mp4",
+        true
       ],
-      "title": "1 · DRIVE: MEETMAP TIKTOK CONTENT / QUEUE"
+      "title": "1 · DRIVE SAFE LOADER · LOCAL FALLBACK ENABLED"
     },
     {
       "id": 3,
@@ -9462,6 +9480,14 @@
         [
           30,
           "filename_prefix"
+        ],
+        [
+          2,
+          "fallback_local_video"
+        ],
+        [
+          2,
+          "use_local_fallback_on_drive_error"
         ]
       ],
       "outputs": [
