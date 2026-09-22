@@ -1,8 +1,8 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 13,
-  "last_node_id": 52,
-  "last_link_id": 96,
+  "revision": 14,
+  "last_node_id": 53,
+  "last_link_id": 120,
   "nodes": [
     {
       "id": 1,
@@ -180,7 +180,7 @@
     },
     {
       "id": 3,
-      "type": "GetVideoComponents",
+      "type": "MeetMapSourceStreamPrepare",
       "pos": [
         -1510,
         590
@@ -197,75 +197,6 @@
           "name": "video",
           "type": "VIDEO",
           "link": 1
-        }
-      ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": [
-            2,
-            6
-          ]
-        },
-        {
-          "name": "audio",
-          "type": "AUDIO",
-          "links": [
-            3
-          ]
-        },
-        {
-          "name": "fps",
-          "type": "FLOAT",
-          "links": [
-            4,
-            15,
-            49
-          ]
-        },
-        {
-          "name": "bit_depth",
-          "type": "INT",
-          "links": []
-        },
-        {
-          "name": "color_space",
-          "type": "COMBO",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "GetVideoComponents",
-        "cnr_id": "comfy-core"
-      },
-      "widgets_values": [],
-      "title": "SOURCE VIDEO COMPONENTS"
-    },
-    {
-      "id": 4,
-      "type": "MeetMapSCAILCropPlanner",
-      "pos": [
-        -1130,
-        570
-      ],
-      "size": [
-        390,
-        330
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 2
-        },
-        {
-          "name": "fps",
-          "type": "FLOAT",
-          "link": 4
         },
         {
           "name": "crop_x",
@@ -318,82 +249,100 @@
       ],
       "outputs": [
         {
+          "name": "pose_video",
+          "type": "VIDEO",
+          "links": [
+            101
+          ]
+        },
+        {
+          "name": "source_video",
+          "type": "VIDEO",
+          "links": [
+            102
+          ]
+        },
+        {
+          "name": "first_frame",
+          "type": "IMAGE",
+          "links": [
+            103
+          ]
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            104
+          ]
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "links": [
+            105
+          ]
+        },
+        {
           "name": "crop_x",
           "type": "INT",
           "links": [
-            8,
-            35
+            106
           ]
         },
         {
           "name": "crop_y",
           "type": "INT",
           "links": [
-            9,
-            36
+            107
           ]
         },
         {
           "name": "crop_width",
           "type": "INT",
           "links": [
-            10,
-            23,
-            29,
-            37
+            108,
+            109,
+            108
           ]
         },
         {
           "name": "crop_height",
           "type": "INT",
           "links": [
-            11,
-            24,
-            30,
-            38
+            110,
+            111,
+            110
           ]
         },
         {
           "name": "frame_count",
           "type": "INT",
           "links": [
-            5,
-            67,
-            72
+            112,
+            113
           ]
         },
         {
           "name": "duration_seconds",
           "type": "FLOAT",
           "links": [
-            50
+            114
           ]
         },
         {
           "name": "feather_pixels",
           "type": "INT",
           "links": [
-            40,
-            41,
-            42,
-            43
+            115
           ]
-        },
-        {
-          "name": "source_width",
-          "type": "INT",
-          "links": []
-        },
-        {
-          "name": "source_height",
-          "type": "INT",
-          "links": []
         },
         {
           "name": "status",
           "type": "STRING",
           "links": [
-            53
+            116,
+            117
           ]
         }
       ],
@@ -406,139 +355,7 @@
         2401,
         32
       ],
-      "title": "2 · EXACT CROP + FULL-LENGTH PLAN"
-    },
-    {
-      "id": 5,
-      "type": "ImageFromBatch",
-      "pos": [
-        -1130,
-        950
-      ],
-      "size": [
-        300,
-        110
-      ],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 6
-        },
-        {
-          "name": "batch_index",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "batch_index"
-          }
-        },
-        {
-          "name": "length",
-          "type": "INT",
-          "link": 5,
-          "widget": {
-            "name": "length"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            7,
-            34
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageFromBatch",
-        "cnr_id": "comfy-core"
-      },
-      "widgets_values": [
-        0,
-        81
-      ],
-      "title": "TRIM SOURCE TO SCAIL LENGTH"
-    },
-    {
-      "id": 6,
-      "type": "ImageCrop",
-      "pos": [
-        -760,
-        950
-      ],
-      "size": [
-        310,
-        180
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 7
-        },
-        {
-          "name": "width",
-          "type": "INT",
-          "link": 10,
-          "widget": {
-            "name": "width"
-          }
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "link": 11,
-          "widget": {
-            "name": "height"
-          }
-        },
-        {
-          "name": "x",
-          "type": "INT",
-          "link": 8,
-          "widget": {
-            "name": "x"
-          }
-        },
-        {
-          "name": "y",
-          "type": "INT",
-          "link": 9,
-          "widget": {
-            "name": "y"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            12,
-            14
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageCrop",
-        "cnr_id": "comfy-core"
-      },
-      "widgets_values": [
-        512,
-        960,
-        0,
-        0
-      ],
-      "title": "3 · EXACT SCAIL CROP"
+      "title": "2 · STREAM SOURCE · NO FULL VIDEO DECODE"
     },
     {
       "id": 7,
@@ -558,7 +375,7 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 12
+          "link": 103
         },
         {
           "name": "batch_index",
@@ -584,7 +401,9 @@
           "links": [
             13,
             17,
-            93
+            93,
+            13,
+            17
           ]
         }
       ],
@@ -626,89 +445,6 @@
       },
       "widgets_values": [],
       "title": "PREVIEW · ORIGINAL CROPPED FRAME 1"
-    },
-    {
-      "id": 9,
-      "type": "CreateVideo",
-      "pos": [
-        -380,
-        910
-      ],
-      "size": [
-        310,
-        180
-      ],
-      "flags": {},
-      "order": 8,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 14
-        },
-        {
-          "name": "fps",
-          "type": "FLOAT",
-          "link": 15,
-          "widget": {
-            "name": "fps"
-          }
-        },
-        {
-          "name": "audio",
-          "type": "AUDIO",
-          "link": null,
-          "shape": 7
-        },
-        {
-          "name": "bit_depth",
-          "type": "COMBO",
-          "link": null,
-          "shape": 7,
-          "widget": {
-            "name": "bit_depth"
-          }
-        },
-        {
-          "name": "color_space",
-          "type": "COMBO",
-          "link": null,
-          "shape": 7,
-          "widget": {
-            "name": "color_space"
-          }
-        },
-        {
-          "name": "codec",
-          "type": "COMBO",
-          "link": null,
-          "shape": 7,
-          "widget": {
-            "name": "codec"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "VIDEO",
-          "type": "VIDEO",
-          "links": [
-            26
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CreateVideo",
-        "cnr_id": "comfy-core"
-      },
-      "widgets_values": [
-        30,
-        "auto",
-        "sRGB",
-        "none"
-      ],
-      "title": "CROPPED DRIVING VIDEO"
     },
     {
       "id": 10,
@@ -1026,7 +762,7 @@
         {
           "name": "width",
           "type": "INT",
-          "link": 23,
+          "link": 108,
           "widget": {
             "name": "width"
           }
@@ -1034,7 +770,7 @@
         {
           "name": "height",
           "type": "INT",
-          "link": 24,
+          "link": 110,
           "widget": {
             "name": "height"
           }
@@ -1187,7 +923,7 @@
           "localized_name": "video",
           "name": "video",
           "type": "VIDEO",
-          "link": 26
+          "link": 101
         },
         {
           "label": "reference_image",
@@ -1231,7 +967,7 @@
           "widget": {
             "name": "value_3"
           },
-          "link": 29
+          "link": 109
         },
         {
           "label": "height",
@@ -1240,7 +976,7 @@
           "widget": {
             "name": "value_4"
           },
-          "link": 30
+          "link": 111
         },
         {
           "label": "frame_count",
@@ -1562,142 +1298,8 @@
       "title": "PREVIEW · SCAIL SWAPPED CROP"
     },
     {
-      "id": 23,
-      "type": "SolidMask",
-      "pos": [
-        2470,
-        1000
-      ],
-      "size": [
-        300,
-        150
-      ],
-      "flags": {},
-      "order": 22,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "value",
-          "type": "FLOAT",
-          "link": null,
-          "widget": {
-            "name": "value"
-          }
-        },
-        {
-          "name": "width",
-          "type": "INT",
-          "link": 37,
-          "widget": {
-            "name": "width"
-          }
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "link": 38,
-          "widget": {
-            "name": "height"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            39
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "SolidMask",
-        "cnr_id": "comfy-core"
-      },
-      "widgets_values": [
-        1,
-        512,
-        960
-      ],
-      "title": "FULL CROP MASK"
-    },
-    {
-      "id": 24,
-      "type": "FeatherMask",
-      "pos": [
-        2820,
-        1000
-      ],
-      "size": [
-        310,
-        210
-      ],
-      "flags": {},
-      "order": 23,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 39
-        },
-        {
-          "name": "left",
-          "type": "INT",
-          "link": 40,
-          "widget": {
-            "name": "left"
-          }
-        },
-        {
-          "name": "top",
-          "type": "INT",
-          "link": 41,
-          "widget": {
-            "name": "top"
-          }
-        },
-        {
-          "name": "right",
-          "type": "INT",
-          "link": 42,
-          "widget": {
-            "name": "right"
-          }
-        },
-        {
-          "name": "bottom",
-          "type": "INT",
-          "link": 43,
-          "widget": {
-            "name": "bottom"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            44
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "FeatherMask",
-        "cnr_id": "comfy-core"
-      },
-      "widgets_values": [
-        32,
-        32,
-        32,
-        32
-      ],
-      "title": "FEATHER CROP EDGES"
-    },
-    {
       "id": 25,
-      "type": "ImageCompositeMasked",
+      "type": "MeetMapStreamCompositeVideo",
       "pos": [
         3200,
         850
@@ -1711,152 +1313,71 @@
       "mode": 0,
       "inputs": [
         {
-          "name": "destination",
-          "type": "IMAGE",
-          "link": 34
+          "name": "source_video",
+          "type": "VIDEO",
+          "link": 102
         },
         {
-          "name": "source",
+          "name": "replacement_images",
           "type": "IMAGE",
           "link": 73
         },
         {
-          "name": "x",
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 61
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "link": 105
+        },
+        {
+          "name": "crop_x",
           "type": "INT",
-          "link": 35,
-          "widget": {
-            "name": "x"
-          }
+          "link": 106
         },
         {
-          "name": "y",
+          "name": "crop_y",
           "type": "INT",
-          "link": 36,
-          "widget": {
-            "name": "y"
-          }
+          "link": 107
         },
         {
-          "name": "resize_source",
-          "type": "BOOLEAN",
-          "link": null,
-          "widget": {
-            "name": "resize_source"
-          }
+          "name": "crop_width",
+          "type": "INT",
+          "link": 108
         },
         {
-          "name": "mask",
-          "type": "MASK",
-          "link": 44,
-          "shape": 7
+          "name": "crop_height",
+          "type": "INT",
+          "link": 110
+        },
+        {
+          "name": "feather_pixels",
+          "type": "INT",
+          "link": 115
         }
       ],
       "outputs": [
         {
-          "name": "IMAGE",
-          "type": "IMAGE",
+          "name": "video",
+          "type": "VIDEO",
           "links": [
-            46,
-            48,
-            76
+            118
+          ]
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            119,
+            120
           ]
         }
       ],
-      "properties": {
-        "Node name for S&R": "ImageCompositeMasked",
-        "cnr_id": "comfy-core"
-      },
-      "widgets_values": [
-        0,
-        0,
-        false
-      ],
-      "title": "9 · FEATHER + AUTO STITCH BACK"
-    },
-    {
-      "id": 26,
-      "type": "ImageFromBatch",
-      "pos": [
-        3640,
-        690
-      ],
-      "size": [
-        270,
-        110
-      ],
-      "flags": {},
-      "order": 25,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 46
-        },
-        {
-          "name": "batch_index",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "batch_index"
-          }
-        },
-        {
-          "name": "length",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "length"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            47
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageFromBatch",
-        "cnr_id": "comfy-core"
-      },
-      "widgets_values": [
-        0,
-        1
-      ],
-      "title": "FIRST FINAL FRAME"
-    },
-    {
-      "id": 27,
-      "type": "PreviewImage",
-      "pos": [
-        3950,
-        630
-      ],
-      "size": [
-        360,
-        300
-      ],
-      "flags": {},
-      "order": 26,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 47
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "Node name for S&R": "PreviewImage",
-        "cnr_id": "comfy-core"
-      },
+      "properties": {},
       "widgets_values": [],
-      "title": "PREVIEW · FINAL FULL FRAME"
+      "title": "13 · STREAM COMPOSITE · NO FULL-FRAME TENSOR"
     },
     {
       "id": 28,
@@ -1876,7 +1397,7 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 3
+          "link": 104
         },
         {
           "name": "start_index",
@@ -1889,7 +1410,7 @@
         {
           "name": "duration",
           "type": "FLOAT",
-          "link": 50,
+          "link": 114,
           "widget": {
             "name": "duration"
           }
@@ -1899,9 +1420,7 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "links": [
-            75
-          ]
+          "links": []
         },
         {
           "name": "status",
@@ -1918,89 +1437,6 @@
         5
       ],
       "title": "10 · SAFE SOURCE AUDIO · TRIM / SILENCE FALLBACK"
-    },
-    {
-      "id": 29,
-      "type": "CreateVideo",
-      "pos": [
-        3640,
-        1080
-      ],
-      "size": [
-        350,
-        220
-      ],
-      "flags": {},
-      "order": 28,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 48
-        },
-        {
-          "name": "fps",
-          "type": "FLOAT",
-          "link": 49,
-          "widget": {
-            "name": "fps"
-          }
-        },
-        {
-          "name": "audio",
-          "type": "AUDIO",
-          "link": 61,
-          "shape": 7
-        },
-        {
-          "name": "bit_depth",
-          "type": "COMBO",
-          "link": null,
-          "shape": 7,
-          "widget": {
-            "name": "bit_depth"
-          }
-        },
-        {
-          "name": "color_space",
-          "type": "COMBO",
-          "link": null,
-          "shape": 7,
-          "widget": {
-            "name": "color_space"
-          }
-        },
-        {
-          "name": "codec",
-          "type": "COMBO",
-          "link": null,
-          "shape": 7,
-          "widget": {
-            "name": "codec"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "VIDEO",
-          "type": "VIDEO",
-          "links": [
-            52
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CreateVideo",
-        "cnr_id": "comfy-core"
-      },
-      "widgets_values": [
-        30,
-        "auto",
-        "sRGB",
-        "none"
-      ],
-      "title": "13 · BUILD VIDEO COMPONENTS · NO EARLY ENCODE"
     },
     {
       "id": 30,
@@ -2020,7 +1456,7 @@
         {
           "name": "video",
           "type": "VIDEO",
-          "link": 52
+          "link": 118
         },
         {
           "name": "filename_prefix",
@@ -2072,7 +1508,7 @@
         {
           "name": "source",
           "type": "*",
-          "link": 53
+          "link": 116
         }
       ],
       "outputs": [
@@ -2086,7 +1522,7 @@
         "Node name for S&R": "PreviewAny"
       },
       "widgets_values": [],
-      "title": "CROP / DURATION STATUS"
+      "title": "STREAM SOURCE STATUS"
     },
     {
       "id": 32,
@@ -2106,7 +1542,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "## V5 automation rules\n\n**Multi-reference:** SCAIL receives the generated character-swapped start frame as primary reference plus face_front.png, face_angle.png and upper_body.png as additional views.\n\n**Relighting:** the official zai-org/SCAIL-2 relighting LoRA is converted to ComfyUI safetensors during installation and applied after DPO, before optional LightX2V distillation.\n\n**Long videos:** the complete requested source is normalized to 4n+1 and split automatically into 81-frame segments with 5-frame overlap. Each segment uses the corresponding source-motion window; the repeated overlap is dropped during final stitch. A hard max of 32 segments prevents unexpectedly expensive jobs.\n\n**VRAM:** the audio branch waits on the fully composited visual output. ComfyUI unloads visual models and clears caches before Seed-VC is allowed to load.\n\n**Finalization:** only after final SaveVideo succeeds is the Drive source moved from Queue to Already posted and marked processed."
+        "## V6 streaming automation rules\n\n**Source loading:** the source video stays file-backed. Metadata is read without decoding the whole file. Only the first cropped frame is decoded up front.\n\n**SCAIL:** cropped pose video is passed as a lazy/file-backed VIDEO and processed in native 81-frame chunks with 5-frame overlap.\n\n**Final composite:** the generated crop is overlaid back onto the original source using FFmpeg streaming. Full-resolution source frames are never materialized into one giant IMAGE tensor.\n\n**Fallbacks:** optional FLUX/LoRAs/Seed-VC/Drive finalization degrade with warnings. A failed full-frame overlay falls back to the generated crop-only video rather than discarding the run.\n\n**Cost safety:** an empty Queue still stops cleanly instead of repeatedly rendering the emergency fallback."
       ],
       "title": "NOTES · V3 AUTOMATION"
     },
@@ -2555,7 +1991,7 @@
         {
           "name": "total_frames",
           "type": "INT",
-          "link": 67
+          "link": 112
         },
         {
           "name": "chunk_size",
@@ -2682,7 +2118,7 @@
         {
           "name": "target_frame_count",
           "type": "INT",
-          "link": 72
+          "link": 113
         }
       ],
       "outputs": [
@@ -2690,6 +2126,8 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
+            73,
+            73,
             73
           ]
         },
@@ -2758,12 +2196,12 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 75
+          "link": null
         },
         {
           "name": "visual_dependency",
           "type": "IMAGE",
-          "link": 76
+          "link": 73
         }
       ],
       "outputs": [
@@ -2952,6 +2390,16 @@
           "name": "first_frame",
           "type": "STRING",
           "link": 96
+        },
+        {
+          "name": "source_stream",
+          "type": "STRING",
+          "link": 117
+        },
+        {
+          "name": "composite",
+          "type": "STRING",
+          "link": 120
         }
       ],
       "outputs": [
@@ -3129,105 +2577,41 @@
       "properties": {},
       "widgets_values": [],
       "title": "FLUX FALLBACK STATUS"
+    },
+    {
+      "id": 53,
+      "type": "PreviewAny",
+      "pos": [
+        4210,
+        640
+      ],
+      "size": [
+        560,
+        120
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 119
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "STREAM COMPOSITE STATUS"
     }
   ],
   "links": [
-    [
-      1,
-      2,
-      0,
-      3,
-      0,
-      "VIDEO"
-    ],
-    [
-      2,
-      3,
-      0,
-      4,
-      0,
-      "IMAGE"
-    ],
-    [
-      3,
-      3,
-      1,
-      28,
-      0,
-      "AUDIO"
-    ],
-    [
-      4,
-      3,
-      2,
-      4,
-      1,
-      "FLOAT"
-    ],
-    [
-      5,
-      4,
-      4,
-      5,
-      2,
-      "INT"
-    ],
-    [
-      6,
-      3,
-      0,
-      5,
-      0,
-      "IMAGE"
-    ],
-    [
-      7,
-      5,
-      0,
-      6,
-      0,
-      "IMAGE"
-    ],
-    [
-      8,
-      4,
-      0,
-      6,
-      3,
-      "INT"
-    ],
-    [
-      9,
-      4,
-      1,
-      6,
-      4,
-      "INT"
-    ],
-    [
-      10,
-      4,
-      2,
-      6,
-      1,
-      "INT"
-    ],
-    [
-      11,
-      4,
-      3,
-      6,
-      2,
-      "INT"
-    ],
-    [
-      12,
-      6,
-      0,
-      7,
-      0,
-      "IMAGE"
-    ],
     [
       13,
       7,
@@ -3235,22 +2619,6 @@
       8,
       0,
       "IMAGE"
-    ],
-    [
-      14,
-      6,
-      0,
-      9,
-      0,
-      "IMAGE"
-    ],
-    [
-      15,
-      3,
-      2,
-      9,
-      1,
-      "FLOAT"
     ],
     [
       16,
@@ -3309,22 +2677,6 @@
       "IMAGE"
     ],
     [
-      23,
-      4,
-      2,
-      16,
-      2,
-      "INT"
-    ],
-    [
-      24,
-      4,
-      3,
-      16,
-      3,
-      "INT"
-    ],
-    [
       25,
       16,
       0,
@@ -3333,36 +2685,12 @@
       "IMAGE"
     ],
     [
-      26,
-      9,
-      0,
-      20,
-      0,
-      "VIDEO"
-    ],
-    [
       28,
       12,
       0,
       20,
       2,
       "STRING"
-    ],
-    [
-      29,
-      4,
-      2,
-      20,
-      5,
-      "INT"
-    ],
-    [
-      30,
-      4,
-      3,
-      20,
-      6,
-      "INT"
     ],
     [
       32,
@@ -3379,150 +2707,6 @@
       22,
       0,
       "IMAGE"
-    ],
-    [
-      34,
-      5,
-      0,
-      25,
-      0,
-      "IMAGE"
-    ],
-    [
-      35,
-      4,
-      0,
-      25,
-      2,
-      "INT"
-    ],
-    [
-      36,
-      4,
-      1,
-      25,
-      3,
-      "INT"
-    ],
-    [
-      37,
-      4,
-      2,
-      23,
-      1,
-      "INT"
-    ],
-    [
-      38,
-      4,
-      3,
-      23,
-      2,
-      "INT"
-    ],
-    [
-      39,
-      23,
-      0,
-      24,
-      0,
-      "MASK"
-    ],
-    [
-      40,
-      4,
-      6,
-      24,
-      1,
-      "INT"
-    ],
-    [
-      41,
-      4,
-      6,
-      24,
-      2,
-      "INT"
-    ],
-    [
-      42,
-      4,
-      6,
-      24,
-      3,
-      "INT"
-    ],
-    [
-      43,
-      4,
-      6,
-      24,
-      4,
-      "INT"
-    ],
-    [
-      44,
-      24,
-      0,
-      25,
-      5,
-      "MASK"
-    ],
-    [
-      46,
-      25,
-      0,
-      26,
-      0,
-      "IMAGE"
-    ],
-    [
-      47,
-      26,
-      0,
-      27,
-      0,
-      "IMAGE"
-    ],
-    [
-      48,
-      25,
-      0,
-      29,
-      0,
-      "IMAGE"
-    ],
-    [
-      49,
-      3,
-      2,
-      29,
-      1,
-      "FLOAT"
-    ],
-    [
-      50,
-      4,
-      5,
-      28,
-      2,
-      "FLOAT"
-    ],
-    [
-      52,
-      29,
-      0,
-      30,
-      0,
-      "VIDEO"
-    ],
-    [
-      53,
-      4,
-      9,
-      31,
-      0,
-      "STRING"
     ],
     [
       54,
@@ -3573,14 +2757,6 @@
       "AUDIO"
     ],
     [
-      61,
-      36,
-      0,
-      29,
-      2,
-      "AUDIO"
-    ],
-    [
       62,
       35,
       1,
@@ -3621,14 +2797,6 @@
       "STRING"
     ],
     [
-      67,
-      4,
-      4,
-      40,
-      0,
-      "INT"
-    ],
-    [
       68,
       40,
       0,
@@ -3661,14 +2829,6 @@
       "IMAGE"
     ],
     [
-      72,
-      4,
-      4,
-      41,
-      2,
-      "INT"
-    ],
-    [
       73,
       41,
       0,
@@ -3683,22 +2843,6 @@
       44,
       0,
       "STRING"
-    ],
-    [
-      75,
-      28,
-      0,
-      42,
-      0,
-      "AUDIO"
-    ],
-    [
-      76,
-      25,
-      0,
-      42,
-      1,
-      "IMAGE"
     ],
     [
       77,
@@ -3858,6 +3002,230 @@
       1,
       48,
       10,
+      "STRING"
+    ],
+    [
+      1,
+      2,
+      0,
+      3,
+      0,
+      "VIDEO"
+    ],
+    [
+      103,
+      3,
+      2,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      13,
+      7,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      17,
+      7,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      101,
+      3,
+      0,
+      20,
+      0,
+      "VIDEO"
+    ],
+    [
+      108,
+      3,
+      7,
+      16,
+      2,
+      "INT"
+    ],
+    [
+      110,
+      3,
+      8,
+      16,
+      3,
+      "INT"
+    ],
+    [
+      109,
+      3,
+      7,
+      20,
+      5,
+      "INT"
+    ],
+    [
+      111,
+      3,
+      8,
+      20,
+      6,
+      "INT"
+    ],
+    [
+      104,
+      3,
+      3,
+      28,
+      0,
+      "AUDIO"
+    ],
+    [
+      114,
+      3,
+      10,
+      28,
+      2,
+      "FLOAT"
+    ],
+    [
+      105,
+      3,
+      4,
+      25,
+      3,
+      "FLOAT"
+    ],
+    [
+      106,
+      3,
+      5,
+      25,
+      4,
+      "INT"
+    ],
+    [
+      107,
+      3,
+      6,
+      25,
+      5,
+      "INT"
+    ],
+    [
+      108,
+      3,
+      7,
+      25,
+      6,
+      "INT"
+    ],
+    [
+      110,
+      3,
+      8,
+      25,
+      7,
+      "INT"
+    ],
+    [
+      112,
+      3,
+      9,
+      40,
+      0,
+      "INT"
+    ],
+    [
+      113,
+      3,
+      9,
+      41,
+      2,
+      "INT"
+    ],
+    [
+      115,
+      3,
+      11,
+      25,
+      8,
+      "INT"
+    ],
+    [
+      116,
+      3,
+      12,
+      31,
+      0,
+      "STRING"
+    ],
+    [
+      117,
+      3,
+      12,
+      48,
+      11,
+      "STRING"
+    ],
+    [
+      102,
+      3,
+      1,
+      25,
+      0,
+      "VIDEO"
+    ],
+    [
+      73,
+      41,
+      0,
+      25,
+      1,
+      "IMAGE"
+    ],
+    [
+      73,
+      41,
+      0,
+      42,
+      1,
+      "IMAGE"
+    ],
+    [
+      61,
+      36,
+      0,
+      25,
+      2,
+      "AUDIO"
+    ],
+    [
+      118,
+      25,
+      0,
+      30,
+      0,
+      "VIDEO"
+    ],
+    [
+      119,
+      25,
+      1,
+      53,
+      0,
+      "STRING"
+    ],
+    [
+      120,
+      25,
+      1,
+      48,
+      12,
       "STRING"
     ]
   ],
@@ -9466,30 +8834,6 @@
           "max_file_size_mb"
         ],
         [
-          4,
-          "crop_x"
-        ],
-        [
-          4,
-          "crop_y"
-        ],
-        [
-          4,
-          "crop_width"
-        ],
-        [
-          4,
-          "crop_height"
-        ],
-        [
-          4,
-          "frame_count"
-        ],
-        [
-          4,
-          "feather_pixels"
-        ],
-        [
           10,
           "reference_folder"
         ],
@@ -9632,6 +8976,30 @@
         [
           2,
           "fallback_when_queue_empty"
+        ],
+        [
+          3,
+          "crop_x"
+        ],
+        [
+          3,
+          "crop_y"
+        ],
+        [
+          3,
+          "crop_width"
+        ],
+        [
+          3,
+          "crop_height"
+        ],
+        [
+          3,
+          "frame_count"
+        ],
+        [
+          3,
+          "feather_pixels"
         ]
       ],
       "outputs": [
@@ -9640,7 +9008,6 @@
         17,
         19,
         22,
-        27,
         30,
         31,
         34,
@@ -9653,12 +9020,13 @@
         47,
         49,
         50,
-        52
+        52,
+        53
       ]
     },
     "app": {
-      "name": "MeetMap Drive → Character + Voice Swap V5",
-      "description": "Multi-reference + official SCAIL-2 relighting + automatic 81/5 long-video chunking + VRAM release before Seed-VC, with Drive Queue finalization."
+      "name": "MeetMap Drive → Character + Voice Swap V6 Streaming",
+      "description": "Streaming source prep + SCAIL chunking + lazy fallbacks + FFmpeg final composite without full-video tensor materialization."
     }
   },
   "version": 0.4
