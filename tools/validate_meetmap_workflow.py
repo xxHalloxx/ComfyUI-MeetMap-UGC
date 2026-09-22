@@ -68,6 +68,7 @@ def main():
     required_top = {
         "MeetMapGoogleDriveLatestVideoSafe",
         "MeetMapSCAILReferenceBatch",
+        "MeetMapLazyFluxPrimaryFallback",
         "MeetMapSCAILLongVideoPlanner",
         "MeetMapSCAILChunkStitch",
         "MeetMapReleaseVRAMThenPassAudio",
@@ -99,11 +100,18 @@ def main():
     collector_inputs = {item.get("name") for item in (collector.get("inputs") or [])}
     required_status_inputs = {
         "drive", "references", "chunk_plan", "stitch", "vram",
-        "voice_reference", "voice_conversion", "save", "drive_finalize", "source_audio",
+        "voice_reference", "voice_conversion", "save", "drive_finalize", "source_audio", "first_frame",
     }
     missing_status = sorted(required_status_inputs - collector_inputs)
     if missing_status:
         fail("status collector missing inputs: " + ", ".join(missing_status))
+
+    flux_fallback = next((node for node in nodes if node.get("type") == "MeetMapLazyFluxPrimaryFallback"), None)
+    if flux_fallback is None:
+        fail("lazy FLUX primary fallback node is missing")
+    flux_inputs = {item.get("name") for item in (flux_fallback.get("inputs") or [])}
+    if not {"fallback_image", "generated_image", "use_flux_when_available"} <= flux_inputs:
+        fail("lazy FLUX primary fallback is missing required inputs")
 
     node36 = next((node for node in nodes if node.get("id") == 36), None)
     if not node36 or node36.get("type") != "MeetMapSeedVCWithFallback":
