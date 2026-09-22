@@ -1,8 +1,8 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 6,
-  "last_node_id": 46,
-  "last_link_id": 79,
+  "revision": 7,
+  "last_node_id": 47,
+  "last_link_id": 80,
   "nodes": [
     {
       "id": 1,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "# MeetMap Automated Character + Voice Swap · V5\n\n**Source:** Google Drive → MeetMap TikTok Content → Queue\n\nV5 upgrades:\n- Native SCAIL-2 multi-reference: generated primary frame + face_front + face_angle + upper_body.\n- Optional SCAIL-2 Relighting LoRA at strength 1.0; missing/corrupt relighting automatically falls back to the base SCAIL model.\n- Automatic long-video segmentation: 81-frame chunks, 5-frame overlap, 76-frame stride, deterministic overlap removal after rendering.\n- Full source processing up to 2401 frames; no longer hard-capped to one 81-frame segment.\n- Visual models are forcibly unloaded before Seed-VC starts, reducing peak VRAM.\n- Fixed creator_01 Seed-VC voice uses 3-stage decoding; Seed-VC retries once and can fall back to original source audio.\n- Drive finalization still runs only after the complete final SaveVideo succeeds.\n\nIf any visual chunk, stitch, VRAM barrier, Seed-VC, mux or SaveVideo step fails, the Drive source remains retryable and is not moved to Already posted."
+        "# MeetMap Automated Character + Voice Swap · V5\n\n**Source:** Google Drive → MeetMap TikTok Content → Queue\n\nV5 upgrades:\n- Native SCAIL-2 multi-reference: generated primary frame + face_front + face_angle + upper_body.\n- Optional SCAIL-2 Relighting LoRA at strength 1.0; missing/corrupt relighting automatically falls back to the base SCAIL model.\n- Automatic long-video segmentation: 81-frame chunks, 5-frame overlap, 76-frame stride, deterministic overlap removal after rendering.\n- Full source processing up to 2401 frames; no longer hard-capped to one 81-frame segment.\n- Visual models are forcibly unloaded before Seed-VC starts, reducing peak VRAM.\n- Fixed creator_01 Seed-VC voice uses 3-stage decoding; Seed-VC retries once and can fall back to original source audio.\n- Final export uses multi-codec/container fallbacks. Drive finalization is fail-soft and runs only after a saved output exists.\n\nOptional stages degrade with warnings. Only missing core input/base-model/output-write conditions can stop the run. Drive-finalization failures never invalidate an already saved video."
       ],
       "title": "README · AUTOMATIC DRIVE → START FRAME → SCAIL"
     },
@@ -1970,7 +1970,7 @@
     },
     {
       "id": 30,
-      "type": "SaveVideo",
+      "type": "MeetMapSafeSaveVideo",
       "pos": [
         4060,
         1060
@@ -1987,6 +1987,14 @@
           "name": "video",
           "type": "VIDEO",
           "link": 52
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "filename_prefix"
+          }
         }
       ],
       "outputs": [
@@ -1996,18 +2004,20 @@
           "links": [
             55
           ]
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            80
+          ]
         }
       ],
-      "properties": {
-        "Node name for S&R": "SaveVideo",
-        "cnr_id": "comfy-core"
-      },
+      "properties": {},
       "widgets_values": [
-        "video/meetmap_scail2_character_swap_v3",
-        "auto",
-        "auto"
+        "video/meetmap_scail2_character_swap_v5"
       ],
-      "title": "11 · SAVE FINAL VIDEO"
+      "title": "13 · SAFE SAVE · MULTI-CODEC FALLBACK"
     },
     {
       "id": 31,
@@ -2067,7 +2077,7 @@
     },
     {
       "id": 33,
-      "type": "MeetMapGoogleDriveMarkProcessed",
+      "type": "MeetMapGoogleDriveFinalizeSafe",
       "pos": [
         4550,
         1060
@@ -2149,7 +2159,7 @@
         "Already posted",
         "MeetMap TikTok Content"
       ],
-      "title": "12 · MOVE TO ALREADY POSTED + MARK PROCESSED"
+      "title": "14 · SAFE DRIVE FINALIZE · NEVER KILL SAVED OUTPUT"
     },
     {
       "id": 34,
@@ -2798,6 +2808,38 @@
       "properties": {},
       "widgets_values": [],
       "title": "SEED-VC RECOVERY STATUS"
+    },
+    {
+      "id": 47,
+      "type": "PreviewAny",
+      "pos": [
+        4510,
+        880
+      ],
+      "size": [
+        500,
+        110
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 80
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "FINAL VIDEO SAVE STATUS"
     }
   ],
   "links": [
@@ -3390,6 +3432,14 @@
       36,
       1,
       46,
+      0,
+      "STRING"
+    ],
+    [
+      80,
+      30,
+      1,
+      47,
       0,
       "STRING"
     ]
@@ -9145,6 +9195,10 @@
         [
           36,
           "fallback_to_source_audio"
+        ],
+        [
+          30,
+          "filename_prefix"
         ]
       ],
       "outputs": [
@@ -9162,7 +9216,8 @@
         43,
         44,
         45,
-        46
+        46,
+        47
       ]
     },
     "app": {
