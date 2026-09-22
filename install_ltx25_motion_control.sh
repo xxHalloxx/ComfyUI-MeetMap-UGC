@@ -124,10 +124,17 @@ PY
   mkdir -p "$comfyui_dir/user/default/workflows"
   cp "$meetmap_dir/workflows/meetmap_ltx25_motion_control.json" \
      "$comfyui_dir/user/default/workflows/meetmap_ltx25_motion_control.json"
+  cp "$meetmap_dir/workflows/meetmap_ltx25_motion_control_v2.json" \
+     "$comfyui_dir/user/default/workflows/meetmap_ltx25_motion_control_v2.json"
+
+  [[ -s "$comfyui_dir/user/default/workflows/meetmap_ltx25_motion_control_v2.json" ]] || {
+    echo "Motion Control V2 workflow copy failed." >&2
+    exit 1
+  }
 
   echo "[MeetMap Motion] Installation complete."
   echo "[MeetMap Motion] Restart the Pod / ComfyUI process before loading the workflow."
-  echo "[MeetMap Motion] Workflow: meetmap_ltx25_motion_control.json"
+  echo "[MeetMap Motion] Recommended workflow: meetmap_ltx25_motion_control_v2.json"
 }
 
 main "$@"
