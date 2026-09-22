@@ -8,7 +8,7 @@ readonly SEEDVC_REPO_URL="https://github.com/billwuhao/ComfyUI_Seed-VC.git"
 readonly SEEDVC_COMMIT="02c0cb8b05121dd9e391b4287c8e28e0eb4e79a4"
 readonly CREATOR_VOICE_DRIVE_FILE_ID="1BjZUeye3fVAkA1DtvdlYdsNQzMY_gANt"
 readonly CREATOR_VOICE_SHA256="e0c502c490c74bbda5226fae8fb95206bb6facf1eb2d1d2ff025b19f9ae62fb7"
-readonly SCAIL2_RELIGHT_SHA256="80d338a7969c1b286c8f5c4996b37eb198d0864837fecb6c87c106ca74571a2b"
+readonly SCAIL2_RELIGHT_SHA256="538056c306179bb82e88f8e965609e7ebf99fbf2caa8b9e49db6a718974c3d7b"
 
 find_comfyui() {
   local candidate
@@ -70,7 +70,7 @@ main() {
   ensure_meetmap_repo "$meetmap_dir"
   ensure_seedvc_repo "$seedvc_dir"
 
-  if ! "$python_bin" -c "import llama_cpp, huggingface_hub, googleapiclient; from google.oauth2 import service_account" >/dev/null 2>&1; then
+  if ! "$python_bin" -c "import llama_cpp, huggingface_hub, googleapiclient, soundfile; from google.oauth2 import service_account" >/dev/null 2>&1; then
     "$python_bin" -m pip install -r "$meetmap_dir/requirements.txt"
   fi
 
@@ -171,10 +171,10 @@ specs = [
     ("Comfy-Org/flux2-dev", "split_files/vae/flux2-vae.safetensors",
      models / "vae/flux2-vae.safetensors"),
 
-    # Official SCAIL-2 relighting LoRA is distributed in SAT .pt format.
-    # It is SHA-256 verified and converted below with the pinned official converter.
-    ("zai-org/SCAIL-2", "model/relighting-lora.pt",
-     models / "loras/.meetmap_scail2_relighting/relighting-lora.pt"),
+    # Comfy-Org publishes the official SCAIL-2 relighting LoRA already converted
+    # to the safetensors format used by ComfyUI.
+    ("Comfy-Org/SCAIL-2", "loras/wan2.1_SCAIL_2_relight_lora_bf16.safetensors",
+     models / "loras/wan2.1_SCAIL_2_relight_lora_bf16.safetensors"),
 
     # Seed-VC checkpoints.
     ("Plachta/Seed-VC", "DiT_seed_v2_uvit_whisper_small_wavenet_bigvgan_pruned.pth",
@@ -244,43 +244,15 @@ for repo, filename, target in specs:
     print(f"[MeetMap SCAIL] downloaded: {target}")
 PY
 
-  # Convert the official SAT-format relighting LoRA to the safetensors format
-  # expected by ComfyUI. Verify the published Hugging Face SHA-256 before
-  # torch.load touches the pickle-based source checkpoint.
-  relight_sat="$models_dir/loras/.meetmap_scail2_relighting/relighting-lora.pt"
-  relight_out="$models_dir/loras/scail2_relighting_lora_bf16.safetensors"
-  if [[ ! -s "$relight_out" ]]; then
-    [[ -s "$relight_sat" ]] || { echo "Missing SCAIL-2 relighting source checkpoint." >&2; exit 1; }
-    actual_relight_sha="$(sha256sum "$relight_sat" | awk '{print $1}')"
-    if [[ "$actual_relight_sha" != "$SCAIL2_RELIGHT_SHA256" ]]; then
-      echo "SCAIL-2 relighting checkpoint SHA-256 mismatch. Refusing conversion." >&2
-      exit 1
-    fi
-    echo "[MeetMap SCAIL] Converting official SCAIL-2 relighting LoRA to ComfyUI safetensors..."
-    "$python_bin" "$meetmap_dir/tools/convert_scail2_lora.py" \
-      --input "$relight_sat" \
-      --output "$relight_out" \
-      --dtype bfloat16 \
-      --print-sample 3
+  # Verify the direct ComfyUI relighting LoRA download.
+  relight_out="$models_dir/loras/wan2.1_SCAIL_2_relight_lora_bf16.safetensors"
+  [[ -s "$relight_out" ]] || { echo "Relighting LoRA download failed." >&2; exit 1; }
+  actual_relight_sha="$(sha256sum "$relight_out" | awk '{print $1}')"
+  if [[ "$actual_relight_sha" != "$SCAIL2_RELIGHT_SHA256" ]]; then
+    echo "SCAIL-2 relighting safetensors SHA-256 mismatch." >&2
+    exit 1
   fi
-  [[ -s "$relight_out" ]] || { echo "Relighting LoRA conversion failed." >&2; exit 1; }
-  "$python_bin" - "$relight_out" <<'PY'
-from pathlib import Path
-import sys
-from safetensors.torch import load_file
-
-path = Path(sys.argv[1])
-state = load_file(str(path), device="cpu")
-if not state:
-    raise SystemExit(f"Converted relighting LoRA contains no tensors: {path}")
-required_suffixes = (".lora_down.weight", ".lora_up.weight")
-if not any(key.endswith(required_suffixes) for key in state):
-    raise SystemExit(f"Converted relighting LoRA has no expected LoRA tensors: {path}")
-print(f"[MeetMap SCAIL] Relighting safetensors validated: {len(state)} tensors.")
-PY
-  rm -f "$relight_sat"
-  rmdir "$models_dir/loras/.meetmap_scail2_relighting/model" 2>/dev/null || true
-  rmdir "$models_dir/loras/.meetmap_scail2_relighting" 2>/dev/null || true
+  rm -rf "$models_dir/loras/.meetmap_scail2_relighting"
 
   mkdir -p "$comfyui_dir/user/default/workflows"
   cp "$meetmap_dir/workflows/meetmap_scail2_character_swap_v2.json" \
@@ -318,7 +290,7 @@ scail = next((n for n in workflow.get("nodes", []) if n.get("id") == 20), None)
 if not scail:
     raise SystemExit("Installed V5 workflow is missing SCAIL subgraph node 20.")
 widgets = scail.get("widgets_values", [])
-if "scail2_relighting_lora_bf16.safetensors" not in widgets:
+if "wan2.1_SCAIL_2_relight_lora_bf16.safetensors" not in widgets:
     raise SystemExit("Installed V5 workflow does not select the relighting LoRA.")
 
 print("[MeetMap SCAIL] V5 workflow JSON validation passed.")
@@ -353,7 +325,7 @@ PY
   echo "[MeetMap SCAIL] Seed-VC uses the fixed creator_01 voice from Drive/Voice References."
   echo "[MeetMap SCAIL] Multi-reference: generated primary + face_front + face_angle + upper_body."
   echo "[MeetMap SCAIL] Long-video mode: native 81-frame chunks with 5-frame overlap."
-  echo "[MeetMap SCAIL] Relighting LoRA: scail2_relighting_lora_bf16.safetensors."
+  echo "[MeetMap SCAIL] Relighting LoRA: wan2.1_SCAIL_2_relight_lora_bf16.safetensors."
   echo "[MeetMap SCAIL] VRAM policy: unload visual models before Seed-VC."
   echo "[MeetMap SCAIL] Share the parent folder 'MeetMap TikTok Content' with the service-account email as Editor."
   echo "[MeetMap SCAIL] Restart the Pod / ComfyUI process before loading the workflow."
