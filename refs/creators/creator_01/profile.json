@@ -29,5 +29,17 @@
   ],
   "body_priority": [
     "upper_body.png"
-  ]
+  ],
+  "scail_multi_reference": [
+    "face_front.png",
+    "face_angle.png",
+    "upper_body.png"
+  ],
+  "scail_max_additional_references": 3,
+  "scail_chunk_size": 81,
+  "scail_chunk_overlap": 5,
+  "scail_max_segments": 32,
+  "scail_relighting_lora": "scail2_relighting_lora_bf16.safetensors",
+  "scail_relighting_strength": 1,
+  "runtime_vram_policy": "unload_visual_models_before_seed_vc"
 }
