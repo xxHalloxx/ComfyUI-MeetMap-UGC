@@ -8,6 +8,7 @@ readonly SEEDVC_REPO_URL="https://github.com/billwuhao/ComfyUI_Seed-VC.git"
 readonly SEEDVC_COMMIT="02c0cb8b05121dd9e391b4287c8e28e0eb4e79a4"
 readonly CREATOR_VOICE_DRIVE_FILE_ID="1BjZUeye3fVAkA1DtvdlYdsNQzMY_gANt"
 readonly CREATOR_VOICE_SHA256="e0c502c490c74bbda5226fae8fb95206bb6facf1eb2d1d2ff025b19f9ae62fb7"
+readonly SCAIL2_RELIGHT_SHA256="80d338a7969c1b286c8f5c4996b37eb198d0864837fecb6c87c106ca74571a2b"
 
 find_comfyui() {
   local candidate
@@ -81,6 +82,8 @@ main() {
     "$meetmap_dir/reference_nodes.py" \
     "$meetmap_dir/gdrive_nodes.py" \
     "$meetmap_dir/voice_nodes.py" \
+    "$meetmap_dir/scail_runtime_nodes.py" \
+    "$meetmap_dir/tools/convert_scail2_lora.py" \
     "$meetmap_dir/__init__.py" \
     "$seedvc_dir/seedvcnode.py"
 
@@ -168,6 +171,11 @@ specs = [
     ("Comfy-Org/flux2-dev", "split_files/vae/flux2-vae.safetensors",
      models / "vae/flux2-vae.safetensors"),
 
+    # Official SCAIL-2 relighting LoRA is distributed in SAT .pt format.
+    # It is SHA-256 verified and converted below with the pinned official converter.
+    ("zai-org/SCAIL-2", "model/relighting-lora.pt",
+     models / "loras/.meetmap_scail2_relighting/relighting-lora.pt"),
+
     # Seed-VC checkpoints.
     ("Plachta/Seed-VC", "DiT_seed_v2_uvit_whisper_small_wavenet_bigvgan_pruned.pth",
      models / "TTS/Seed-VC/DiT_seed_v2_uvit_whisper_small_wavenet_bigvgan_pruned.pth"),
@@ -236,6 +244,30 @@ for repo, filename, target in specs:
     print(f"[MeetMap SCAIL] downloaded: {target}")
 PY
 
+  # Convert the official SAT-format relighting LoRA to the safetensors format
+  # expected by ComfyUI. Verify the published Hugging Face SHA-256 before
+  # torch.load touches the pickle-based source checkpoint.
+  relight_sat="$models_dir/loras/.meetmap_scail2_relighting/relighting-lora.pt"
+  relight_out="$models_dir/loras/scail2_relighting_lora_bf16.safetensors"
+  if [[ ! -s "$relight_out" ]]; then
+    [[ -s "$relight_sat" ]] || { echo "Missing SCAIL-2 relighting source checkpoint." >&2; exit 1; }
+    actual_relight_sha="$(sha256sum "$relight_sat" | awk '{print $1}')"
+    if [[ "$actual_relight_sha" != "$SCAIL2_RELIGHT_SHA256" ]]; then
+      echo "SCAIL-2 relighting checkpoint SHA-256 mismatch. Refusing conversion." >&2
+      exit 1
+    fi
+    echo "[MeetMap SCAIL] Converting official SCAIL-2 relighting LoRA to ComfyUI safetensors..."
+    "$python_bin" "$meetmap_dir/tools/convert_scail2_lora.py" \
+      --input "$relight_sat" \
+      --output "$relight_out" \
+      --dtype bfloat16 \
+      --print-sample 3
+  fi
+  [[ -s "$relight_out" ]] || { echo "Relighting LoRA conversion failed." >&2; exit 1; }
+  rm -f "$relight_sat"
+  rmdir "$models_dir/loras/.meetmap_scail2_relighting/model" 2>/dev/null || true
+  rmdir "$models_dir/loras/.meetmap_scail2_relighting" 2>/dev/null || true
+
   mkdir -p "$comfyui_dir/user/default/workflows"
   cp "$meetmap_dir/workflows/meetmap_scail2_character_swap_v2.json" \
      "$comfyui_dir/user/default/workflows/meetmap_scail2_character_swap_v2.json"
@@ -274,6 +306,10 @@ PY
   echo "[MeetMap SCAIL] The runtime refuses source folders outside MeetMap TikTok Content/Queue."
   echo "[MeetMap SCAIL] Successful sources are moved to sibling folder 'Already posted'."
   echo "[MeetMap SCAIL] Seed-VC uses the fixed creator_01 voice from Drive/Voice References."
+  echo "[MeetMap SCAIL] Multi-reference: generated primary + face_front + face_angle + upper_body."
+  echo "[MeetMap SCAIL] Long-video mode: native 81-frame chunks with 5-frame overlap."
+  echo "[MeetMap SCAIL] Relighting LoRA: scail2_relighting_lora_bf16.safetensors."
+  echo "[MeetMap SCAIL] VRAM policy: unload visual models before Seed-VC."
   echo "[MeetMap SCAIL] Share the parent folder 'MeetMap TikTok Content' with the service-account email as Editor."
   echo "[MeetMap SCAIL] Restart the Pod / ComfyUI process before loading the workflow."
   echo "[MeetMap SCAIL] Recommended workflow: meetmap_scail2_character_swap_v3_drive.json"
