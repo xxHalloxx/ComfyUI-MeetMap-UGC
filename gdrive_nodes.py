@@ -25,8 +25,22 @@ def _iso_utc(value=None):
     return (value or _utc_now()).isoformat().replace("+00:00", "Z")
 
 
+def _validate_service_account_info(info):
+    if isinstance(info, str):
+        info = json.loads(info)
+    if not isinstance(info, dict):
+        raise ValueError("Service-account credential must decode to a JSON object.")
+    required = ("type", "client_email", "private_key", "token_uri")
+    missing = [key for key in required if not str(info.get(key) or "").strip()]
+    if missing:
+        raise ValueError("Service-account JSON is missing: " + ", ".join(missing))
+    if info.get("type") != "service_account":
+        raise ValueError("Credential JSON is not a Google service-account key.")
+    return info
+
+
 def _credentials():
-    """Load a service-account credential from environment without exposing it in the workflow."""
+    """Load service-account credentials from RunPod secret JSON or a protected local file."""
     try:
         from google.oauth2 import service_account
     except ImportError as exc:
@@ -36,28 +50,59 @@ def _credentials():
         ) from exc
 
     raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
-    path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "").strip()
+    explicit_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "").strip()
 
     if raw:
         try:
-            info = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON.") from exc
+            info = _validate_service_account_info(json.loads(raw))
+        except Exception:
+            # Some secret UIs store the entire JSON as an escaped JSON string.
+            try:
+                info = _validate_service_account_info(json.loads(json.loads(raw)))
+            except Exception as exc:
+                raise RuntimeError(
+                    "GOOGLE_SERVICE_ACCOUNT_JSON could not be decoded as a service-account JSON object."
+                ) from exc
         return service_account.Credentials.from_service_account_info(info, scopes=[_DRIVE_SCOPE])
 
-    if path:
-        credential_path = Path(path).expanduser().resolve()
-        if not credential_path.is_file():
-            raise RuntimeError(f"GOOGLE_SERVICE_ACCOUNT_FILE does not exist: {credential_path}")
-        return service_account.Credentials.from_service_account_file(
-            str(credential_path),
-            scopes=[_DRIVE_SCOPE],
-        )
+    candidates = []
+    if explicit_path:
+        candidates.append(Path(explicit_path).expanduser())
+    candidates.extend(
+        [
+            Path("/runpod-volume/secrets/google-service-account.json"),
+            Path("/workspace/secrets/google-service-account.json"),
+            Path("/workspace/google-service-account.json"),
+            Path.home() / ".config/meetmap/google-service-account.json",
+        ]
+    )
+
+    checked = []
+    for candidate in candidates:
+        candidate = candidate.resolve()
+        if candidate in checked:
+            continue
+        checked.append(candidate)
+        if not candidate.is_file():
+            continue
+        try:
+            info = _validate_service_account_info(
+                json.loads(candidate.read_text(encoding="utf-8"))
+            )
+            return service_account.Credentials.from_service_account_info(
+                info,
+                scopes=[_DRIVE_SCOPE],
+            )
+        except Exception as exc:
+            if explicit_path and candidate == Path(explicit_path).expanduser().resolve():
+                raise RuntimeError(
+                    f"GOOGLE_SERVICE_ACCOUNT_FILE is invalid: {candidate}: {exc}"
+                ) from exc
 
     raise RuntimeError(
-        "Google Drive credentials are not configured. Set either GOOGLE_SERVICE_ACCOUNT_JSON "
-        "(recommended as a RunPod secret/env var) or GOOGLE_SERVICE_ACCOUNT_FILE. "
-        "Share only the reference-video Drive folder with that service account."
+        "Google Drive credentials are not configured. Set GOOGLE_SERVICE_ACCOUNT_JSON "
+        "or GOOGLE_SERVICE_ACCOUNT_FILE, or place google-service-account.json in "
+        "/runpod-volume/secrets/ or /workspace/secrets/."
     )
 
 
@@ -91,7 +136,7 @@ def _validate_folder_target(service, folder_id, required_folder_name="", require
             fields="id,name,mimeType,parents",
             supportsAllDrives=True,
         )
-        .execute()
+        .execute(num_retries=3)
     )
     if metadata.get("mimeType") != "application/vnd.google-apps.folder":
         raise ValueError("Configured Google Drive source is not a folder.")
@@ -118,7 +163,7 @@ def _validate_folder_target(service, folder_id, required_folder_name="", require
                     fields="id,name,mimeType",
                     supportsAllDrives=True,
                 )
-                .execute()
+                .execute(num_retries=3)
             )
             parent_names.append(str(parent.get("name") or "").strip())
         if expected_parent_name not in parent_names:
@@ -138,7 +183,7 @@ def _find_sibling_folder(service, source_folder_id, sibling_name, required_paren
             fields="id,name,mimeType,parents",
             supportsAllDrives=True,
         )
-        .execute()
+        .execute(num_retries=3)
     )
     if source.get("mimeType") != "application/vnd.google-apps.folder":
         raise RuntimeError("Source parent is not a Google Drive folder.")
@@ -156,7 +201,7 @@ def _find_sibling_folder(service, source_folder_id, sibling_name, required_paren
             fields="id,name,mimeType",
             supportsAllDrives=True,
         )
-        .execute()
+        .execute(num_retries=3)
     )
     expected_parent_name = str(required_parent_folder_name or "").strip()
     if expected_parent_name and str(root_parent.get("name") or "").strip() != expected_parent_name:
@@ -180,7 +225,7 @@ def _find_sibling_folder(service, source_folder_id, sibling_name, required_paren
             includeItemsFromAllDrives=True,
             supportsAllDrives=True,
         )
-        .execute()
+        .execute(num_retries=3)
     )
     matches = response.get("files") or []
     if len(matches) != 1:
@@ -223,7 +268,7 @@ def _merge_app_properties(service, file_id, updates):
             fields="id,appProperties",
             supportsAllDrives=True,
         )
-        .execute()
+        .execute(num_retries=3)
     )
     props = dict(current.get("appProperties") or {})
     for key, value in updates.items():
@@ -236,7 +281,7 @@ def _merge_app_properties(service, file_id, updates):
             fields="id,appProperties,parents",
             supportsAllDrives=True,
         )
-        .execute()
+        .execute(num_retries=3)
     )
     return props
 
@@ -367,7 +412,7 @@ class MeetMapGoogleDriveLatestVideo:
                     includeItemsFromAllDrives=True,
                     supportsAllDrives=True,
                 )
-                .execute()
+                .execute(num_retries=3)
             )
             pages_checked += 1
             for item in response.get("files") or []:
@@ -435,7 +480,7 @@ class MeetMapGoogleDriveLatestVideo:
                     downloader = MediaIoBaseDownload(handle, request, chunksize=8 * 1024 * 1024)
                     done = False
                     while not done:
-                        _, done = downloader.next_chunk()
+                        _, done = downloader.next_chunk(num_retries=3)
                 if size > 0 and partial.stat().st_size != size:
                     raise RuntimeError(
                         f"Drive download size mismatch: expected {size}, got {partial.stat().st_size}."
@@ -539,7 +584,7 @@ class MeetMapGoogleDriveMarkProcessed:
                 fields="id,name,parents,appProperties",
                 supportsAllDrives=True,
             )
-            .execute()
+            .execute(num_retries=3)
         )
         props = dict(metadata.get("appProperties") or {})
         current_claim = str(props.get(_CLAIM_ID_KEY, "")).strip()
@@ -591,7 +636,7 @@ class MeetMapGoogleDriveMarkProcessed:
             kwargs["removeParents"] = remove
 
         # Move first. If this fails, the source remains in Queue and is not marked processed.
-        service.files().update(**kwargs).execute()
+        service.files().update(**kwargs).execute(num_retries=3)
 
         # Only finalize the processed state after the file has left Queue successfully.
         _merge_app_properties(
