@@ -1,8 +1,8 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 7,
-  "last_node_id": 47,
-  "last_link_id": 80,
+  "revision": 8,
+  "last_node_id": 49,
+  "last_link_id": 90,
   "nodes": [
     {
       "id": 1,
@@ -134,7 +134,8 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            54
+            54,
+            81
           ]
         }
       ],
@@ -2009,7 +2010,8 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            80
+            80,
+            88
           ]
         }
       ],
@@ -2148,7 +2150,8 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            58
+            58,
+            89
           ]
         }
       ],
@@ -2231,7 +2234,8 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            62
+            62,
+            86
           ]
         }
       ],
@@ -2351,7 +2355,8 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            79
+            79,
+            87
           ]
         }
       ],
@@ -2455,7 +2460,8 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            66
+            66,
+            82
           ]
         }
       ],
@@ -2567,7 +2573,8 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            70
+            70,
+            83
           ]
         }
       ],
@@ -2657,7 +2664,8 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            74
+            74,
+            84
           ]
         }
       ],
@@ -2737,7 +2745,8 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            78
+            78,
+            85
           ]
         }
       ],
@@ -2840,6 +2849,122 @@
       "properties": {},
       "widgets_values": [],
       "title": "FINAL VIDEO SAVE STATUS"
+    },
+    {
+      "id": 48,
+      "type": "MeetMapStatusCollector",
+      "pos": [
+        5060,
+        1080
+      ],
+      "size": [
+        600,
+        430
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "drive",
+          "type": "STRING",
+          "link": 81
+        },
+        {
+          "name": "references",
+          "type": "STRING",
+          "link": 82
+        },
+        {
+          "name": "chunk_plan",
+          "type": "STRING",
+          "link": 83
+        },
+        {
+          "name": "stitch",
+          "type": "STRING",
+          "link": 84
+        },
+        {
+          "name": "vram",
+          "type": "STRING",
+          "link": 85
+        },
+        {
+          "name": "voice_reference",
+          "type": "STRING",
+          "link": 86
+        },
+        {
+          "name": "voice_conversion",
+          "type": "STRING",
+          "link": 87
+        },
+        {
+          "name": "save",
+          "type": "STRING",
+          "link": 88
+        },
+        {
+          "name": "drive_finalize",
+          "type": "STRING",
+          "link": 89
+        }
+      ],
+      "outputs": [
+        {
+          "name": "summary",
+          "type": "STRING",
+          "links": [
+            90
+          ]
+        },
+        {
+          "name": "warning_count",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "used_fallback",
+          "type": "BOOLEAN",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "15 · RUN SUMMARY · FALLBACK REPORT"
+    },
+    {
+      "id": 49,
+      "type": "PreviewAny",
+      "pos": [
+        5690,
+        1080
+      ],
+      "size": [
+        650,
+        190
+      ],
+      "flags": {},
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 90
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "title": "FINAL RUN SUMMARY"
     }
   ],
   "links": [
@@ -3440,6 +3565,86 @@
       30,
       1,
       47,
+      0,
+      "STRING"
+    ],
+    [
+      81,
+      2,
+      5,
+      48,
+      0,
+      "STRING"
+    ],
+    [
+      82,
+      38,
+      1,
+      48,
+      1,
+      "STRING"
+    ],
+    [
+      83,
+      40,
+      3,
+      48,
+      2,
+      "STRING"
+    ],
+    [
+      84,
+      41,
+      1,
+      48,
+      3,
+      "STRING"
+    ],
+    [
+      85,
+      42,
+      1,
+      48,
+      4,
+      "STRING"
+    ],
+    [
+      86,
+      35,
+      1,
+      48,
+      5,
+      "STRING"
+    ],
+    [
+      87,
+      36,
+      1,
+      48,
+      6,
+      "STRING"
+    ],
+    [
+      88,
+      30,
+      1,
+      48,
+      7,
+      "STRING"
+    ],
+    [
+      89,
+      33,
+      1,
+      48,
+      8,
+      "STRING"
+    ],
+    [
+      90,
+      48,
+      0,
+      49,
       0,
       "STRING"
     ]
@@ -9217,7 +9422,8 @@
         44,
         45,
         46,
-        47
+        47,
+        49
       ]
     },
     "app": {
