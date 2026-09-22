@@ -658,6 +658,10 @@ class MeetMapGoogleDriveLatestVideoSafe(MeetMapGoogleDriveLatestVideo):
             "BOOLEAN",
             {"default": True},
         )
+        required["fallback_when_queue_empty"] = (
+            "BOOLEAN",
+            {"default": False},
+        )
         return {"required": required}
 
     FUNCTION = "load_safe"
@@ -677,6 +681,7 @@ class MeetMapGoogleDriveLatestVideoSafe(MeetMapGoogleDriveLatestVideo):
         download_subfolder,
         fallback_local_video,
         use_local_fallback_on_drive_error,
+        fallback_when_queue_empty,
     ):
         try:
             return super().load(
@@ -691,6 +696,14 @@ class MeetMapGoogleDriveLatestVideoSafe(MeetMapGoogleDriveLatestVideo):
         except Exception as drive_exc:
             if not bool(use_local_fallback_on_drive_error):
                 raise
+
+            queue_empty = "No new unprocessed/unclaimed video was found" in str(drive_exc)
+            if queue_empty and not bool(fallback_when_queue_empty):
+                raise RuntimeError(
+                    "Google Drive Queue is empty; no render was started. "
+                    "Local emergency fallback is intentionally disabled for an empty Queue "
+                    "to prevent duplicate renders/costs."
+                ) from drive_exc
 
             try:
                 from comfy_api.latest import InputImpl
