@@ -1,6 +1,6 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 1,
+  "revision": 2,
   "last_node_id": 34,
   "last_link_id": 58,
   "nodes": [
@@ -2035,7 +2035,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "## V3 automation rules\n\n**Exact source path:** MeetMap TikTok Content → Queue. The Drive node validates both folder names before consuming a file.\n\n**Only new videos:** choose the newest video without `meetmap_processed=true`; skip active claims; fail closed when no new video exists.\n\n**First-frame rule:** regenerate the first cropped source frame with FLUX.2 + creator identity references before sending it to SCAIL.\n\n**Finalization:** only after SaveVideo succeeds, mark the Drive source processed and clear its claim.\n\n**Base limit:** 81 frames. Use SCAIL Extend/chunking for longer reference videos."
+        "## V3 automation rules\n\n**Exact source path:** MeetMap TikTok Content → Queue. The Drive node validates both folder names before consuming a file.\n\n**Only new videos:** choose the newest video without `meetmap_processed=true`; skip active claims; fail closed when no new video exists.\n\n**First-frame rule:** regenerate the first cropped source frame with FLUX.2 + creator identity references before sending it to SCAIL.\n\n**Finalization:** only after SaveVideo succeeds, resolve the sibling folder **Already posted** under **MeetMap TikTok Content**, move the source video out of Queue, then mark it processed and clear the claim. If the move fails, the source is NOT marked processed and remains eligible for retry.\n\n**Base limit:** 81 frames. Use SCAIL Extend/chunking for longer reference videos."
       ],
       "title": "NOTES · V3 AUTOMATION"
     },
@@ -2084,6 +2084,22 @@
           "widget": {
             "name": "processed_folder_id"
           }
+        },
+        {
+          "name": "processed_folder_name",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "processed_folder_name"
+          }
+        },
+        {
+          "name": "required_parent_folder_name",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "required_parent_folder_name"
+          }
         }
       ],
       "outputs": [
@@ -2103,9 +2119,11 @@
       "properties": {},
       "widgets_values": [
         true,
-        ""
+        "",
+        "Already posted",
+        "MeetMap TikTok Content"
       ],
-      "title": "12 · MARK DRIVE SOURCE PROCESSED"
+      "title": "12 · MOVE TO ALREADY POSTED + MARK PROCESSED"
     },
     {
       "id": 34,
@@ -8240,6 +8258,14 @@
         [
           33,
           "processed_folder_id"
+        ],
+        [
+          33,
+          "processed_folder_name"
+        ],
+        [
+          33,
+          "required_parent_folder_name"
         ]
       ],
       "outputs": [
@@ -8256,7 +8282,7 @@
     },
     "app": {
       "name": "MeetMap Drive → Character Swap V3",
-      "description": "Consumes only new reference videos from Google Drive → MeetMap TikTok Content → Queue, validates the exact folder path by name, claims each source once, performs FLUX.2 first-frame identity replacement + SCAIL-2 motion replacement, saves the result, then marks the source processed."
+      "description": "Consumes only new videos from Google Drive → MeetMap TikTok Content → Queue, performs FLUX.2 first-frame identity replacement + SCAIL-2 motion replacement, saves the result, then moves the source to Already posted and marks it processed."
     }
   },
   "version": 0.4
