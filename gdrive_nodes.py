@@ -2,6 +2,8 @@ import io
 import json
 import os
 import re
+import shutil
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -295,6 +297,89 @@ def _is_video_candidate(item):
     return mime.startswith("video/") or Path(name).suffix.lower() in _VIDEO_EXTENSIONS
 
 
+def _normalize_video_for_comfy(path):
+    """Best-effort container/codec normalization. Never destroys the original download."""
+    source = Path(path)
+    ffmpeg = shutil.which("ffmpeg")
+    ffprobe = shutil.which("ffprobe")
+    notes = []
+
+    needs_normalize = source.suffix.lower() not in {".mp4", ".m4v"}
+    if ffprobe:
+        try:
+            probe = subprocess.run(
+                [
+                    ffprobe,
+                    "-v", "error",
+                    "-select_streams", "v:0",
+                    "-show_entries", "stream=codec_name,width,height",
+                    "-of", "default=noprint_wrappers=1",
+                    str(source),
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=30,
+            )
+            if probe.returncode != 0 or "width=" not in probe.stdout or "height=" not in probe.stdout:
+                needs_normalize = True
+                notes.append("ffprobe requested normalization")
+        except Exception as exc:
+            notes.append(f"ffprobe unavailable/failed: {exc}")
+
+    if not needs_normalize:
+        return source, "source container accepted directly"
+
+    if not ffmpeg:
+        return source, "WARNING: source would benefit from normalization but ffmpeg is unavailable; using original"
+
+    normalized = source.with_name(source.stem + ".meetmap_normalized.mp4")
+    if normalized.is_file() and normalized.stat().st_size > 0 and normalized.stat().st_mtime_ns >= source.stat().st_mtime_ns:
+        return normalized, "reused existing normalized MP4 fallback"
+
+    normalized.unlink(missing_ok=True)
+    commands = [
+        [
+            ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
+            "-i", str(source),
+            "-map", "0:v:0", "-map", "0:a?",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "192k",
+            "-movflags", "+faststart",
+            str(normalized),
+        ],
+        [
+            ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
+            "-i", str(source),
+            "-map", "0:v:0", "-map", "0:a?",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            str(normalized),
+        ],
+    ]
+
+    errors = []
+    for attempt, command in enumerate(commands, start=1):
+        try:
+            result = subprocess.run(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=900,
+            )
+            if result.returncode == 0 and normalized.is_file() and normalized.stat().st_size > 0:
+                return normalized, f"normalized source to MP4 using ffmpeg fallback #{attempt}"
+            errors.append(result.stderr.strip() or f"ffmpeg exit={result.returncode}")
+        except Exception as exc:
+            errors.append(str(exc))
+        normalized.unlink(missing_ok=True)
+
+    return source, "WARNING: ffmpeg normalization failed; using original source. " + " | ".join(errors)
+
+
 class MeetMapGoogleDriveLatestVideo:
     @classmethod
     def INPUT_TYPES(cls):
@@ -505,12 +590,48 @@ class MeetMapGoogleDriveLatestVideo:
                         pass
                 raise
 
-        video = InputImpl.VideoFromFile(str(target))
-        relative = target.relative_to(input_root).as_posix()
+        normalized_target, normalize_status = _normalize_video_for_comfy(target)
+        try:
+            video = InputImpl.VideoFromFile(str(normalized_target))
+        except Exception as first_exc:
+            # If ComfyUI rejects the normalized file object construction, retry the exact
+            # original download once before giving up. This covers codec/container edge cases.
+            if normalized_target != target:
+                try:
+                    video = InputImpl.VideoFromFile(str(target))
+                    normalized_target = target
+                    normalize_status += f"; normalized VideoFromFile failed ({first_exc}); original accepted"
+                except Exception as second_exc:
+                    if claim_token:
+                        try:
+                            _merge_app_properties(
+                                service,
+                                file_id,
+                                {_CLAIM_ID_KEY: "", _CLAIMED_AT_KEY: ""},
+                            )
+                        except Exception:
+                            pass
+                    raise RuntimeError(
+                        f"Downloaded Drive video could not be opened by ComfyUI: "
+                        f"normalized={first_exc}; original={second_exc}"
+                    ) from second_exc
+            else:
+                if claim_token:
+                    try:
+                        _merge_app_properties(
+                            service,
+                            file_id,
+                            {_CLAIM_ID_KEY: "", _CLAIMED_AT_KEY: ""},
+                        )
+                    except Exception:
+                        pass
+                raise RuntimeError(f"Downloaded Drive video could not be opened by ComfyUI: {first_exc}") from first_exc
+
+        relative = normalized_target.relative_to(input_root).as_posix()
         status = (
             f"Drive queue '{source_folder.get('name', 'Queue')}' selected new video "
             f"'{drive_name}' ({file_id}); "
-            f"{'claimed' if claim_token else 'read-only'}; local={relative}."
+            f"{'claimed' if claim_token else 'read-only'}; local={relative}; {normalize_status}."
         )
         return (video, file_id, claim_token, drive_name, relative, status)
 
@@ -671,12 +792,54 @@ class MeetMapGoogleDriveMarkProcessed:
         return (video, status)
 
 
+
+
+class MeetMapGoogleDriveFinalizeSafe(MeetMapGoogleDriveMarkProcessed):
+    FUNCTION = "mark_safe"
+    DESCRIPTION = (
+        "Fail-soft finalizer. The rendered video is never invalidated by a later Drive move/"
+        "metadata failure. On failure it returns the video unchanged and reports a warning; "
+        "the Drive source remains unprocessed/retryable."
+    )
+
+    def mark_safe(
+        self,
+        video,
+        file_id,
+        claim_token,
+        mark_processed,
+        processed_folder_id,
+        processed_folder_name,
+        required_parent_folder_name,
+    ):
+        try:
+            return super().mark(
+                video,
+                file_id,
+                claim_token,
+                mark_processed,
+                processed_folder_id,
+                processed_folder_name,
+                required_parent_folder_name,
+            )
+        except Exception as exc:
+            status = (
+                "WARNING: final video was already produced, but Google Drive finalization failed. "
+                "Source was NOT marked processed by this fallback and should remain safe for manual/"
+                f"later recovery. {type(exc).__name__}: {exc}"
+            )
+            print("[MeetMap Drive] " + status)
+            return (video, status)
+
+
 NODE_CLASS_MAPPINGS = {
     "MeetMapGoogleDriveLatestVideo": MeetMapGoogleDriveLatestVideo,
     "MeetMapGoogleDriveMarkProcessed": MeetMapGoogleDriveMarkProcessed,
+    "MeetMapGoogleDriveFinalizeSafe": MeetMapGoogleDriveFinalizeSafe,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "MeetMapGoogleDriveLatestVideo": "MeetMap Google Drive Latest Video",
     "MeetMapGoogleDriveMarkProcessed": "MeetMap Google Drive Mark Processed",
+    "MeetMapGoogleDriveFinalizeSafe": "MeetMap Google Drive Finalize Safe",
 }
