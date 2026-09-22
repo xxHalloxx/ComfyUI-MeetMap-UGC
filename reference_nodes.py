@@ -113,6 +113,86 @@ def _scale_to_megapixels(image: torch.Tensor, megapixels: float):
     return resized.movedim(1, -1).clamp_(0.0, 1.0)
 
 
+
+def _resize_cover(image: torch.Tensor, target_height: int, target_width: int):
+    if image.ndim != 4 or image.shape[0] < 1 or image.shape[-1] < 3:
+        raise ValueError("IMAGE data must be NHWC.")
+    image = image[:1, ..., :3]
+    h = int(image.shape[1])
+    w = int(image.shape[2])
+    if h <= 0 or w <= 0:
+        raise ValueError("Reference image has invalid dimensions.")
+
+    scale = max(float(target_height) / float(h), float(target_width) / float(w))
+    resized_h = max(target_height, int(math.ceil(h * scale)))
+    resized_w = max(target_width, int(math.ceil(w * scale)))
+
+    chw = image.movedim(-1, 1)
+    resized = F.interpolate(
+        chw,
+        size=(resized_h, resized_w),
+        mode="bicubic",
+        align_corners=False,
+        antialias=True,
+    )
+    top = max(0, (resized_h - target_height) // 2)
+    left = max(0, (resized_w - target_width) // 2)
+    cropped = resized[:, :, top:top + target_height, left:left + target_width]
+    return cropped.movedim(1, -1).clamp_(0.0, 1.0)
+
+
+class MeetMapSceneReferenceBatch:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "scene_image": ("IMAGE",),
+                "references": ("MEETMAP_REFERENCE_SET",),
+                "max_references": ("INT", {"default": 6, "min": 1, "max": 12}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("image_batch", "status")
+    FUNCTION = "build"
+    CATEGORY = "MeetMap/UGC"
+    DESCRIPTION = (
+        "Builds a FLUX.2 image-edit reference batch where frame 1 is the exact source scene/pose "
+        "and later frames are creator identity references resized with center-crop to the same size."
+    )
+
+    def build(self, scene_image, references, max_references):
+        if scene_image is None or scene_image.ndim != 4 or scene_image.shape[0] < 1:
+            raise ValueError("scene_image must contain at least one IMAGE frame.")
+        if not isinstance(references, (list, tuple)) or not references:
+            raise RuntimeError("MeetMap reference set is empty.")
+
+        scene = scene_image[:1, ..., :3].clamp(0.0, 1.0)
+        target_h = int(scene.shape[1])
+        target_w = int(scene.shape[2])
+
+        selected = list(references)[: max(1, int(max_references))]
+        prepared = [scene]
+        names = []
+        for index, item in enumerate(selected, start=1):
+            image = item.get("image") if isinstance(item, dict) else None
+            if image is None:
+                raise ValueError(f"Reference #{index} is missing IMAGE data.")
+            prepared.append(_resize_cover(image, target_h, target_w))
+            names.append(
+                str(item.get("filename", f"reference_{index:02d}"))
+                if isinstance(item, dict)
+                else f"reference_{index:02d}"
+            )
+
+        batch = torch.cat(prepared, dim=0)
+        status = (
+            f"FLUX scene/reference batch: 1 source-scene frame + {len(names)} identity refs "
+            f"at {target_w}x{target_h}. Identity refs: " + ", ".join(names)
+        )
+        return (batch, status)
+
+
 class MeetMapReferenceFolderLoader:
     @classmethod
     def INPUT_TYPES(cls):
@@ -237,11 +317,13 @@ class MeetMapMultiReferenceConditioning:
 
 
 NODE_CLASS_MAPPINGS = {
+    "MeetMapSceneReferenceBatch": MeetMapSceneReferenceBatch,
     "MeetMapReferenceFolderLoader": MeetMapReferenceFolderLoader,
     "MeetMapMultiReferenceConditioning": MeetMapMultiReferenceConditioning,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "MeetMapSceneReferenceBatch": "MeetMap Scene + Character Reference Batch",
     "MeetMapReferenceFolderLoader": "MeetMap Reference Folder Loader",
     "MeetMapMultiReferenceConditioning": "MeetMap Multi Reference Conditioning",
 }
