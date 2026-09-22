@@ -166,3 +166,103 @@ curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/
 
 Restart ComfyUI / the RunPod Pod after installation.
 
+## Automated Google Drive → SCAIL-2 Character Swap V3
+
+Recommended workflow:
+
+`workflows/meetmap_scail2_character_swap_v3_drive.json`
+
+This version is built around the intended production flow:
+
+```text
+Google Drive reference-video folder
+  -> newest unprocessed video
+  -> claim/lease source file
+  -> decode frames + original audio
+  -> exact person crop
+  -> extract first crop frame
+  -> combine first frame + creator identity references
+  -> FLUX.2 Klein regenerates frame 1 with the replacement character
+  -> resize generated frame to exact SCAIL crop size
+  -> SCAIL-2 replacement uses that generated frame as reference
+  -> feathered stitch back into untouched original frames
+  -> restore original source audio
+  -> SaveVideo
+  -> mark Drive source processed / optionally move it to processed folder
+```
+
+### Critical first-frame rule
+
+V3 deliberately does **not** use the raw first frame as the SCAIL reference image. The exact first cropped frame is first edited by FLUX.2 Klein using the creator reference set. The edit prompt preserves the source pose, camera, scene, nearby objects and lighting while replacing the person with the creator identity. That generated frame then becomes the SCAIL-2 reference image.
+
+### Google Drive queue semantics
+
+`MeetMapGoogleDriveLatestVideo`:
+- checks the configured Drive folder at every workflow run;
+- selects the newest video that is not marked `meetmap_processed=true`;
+- skips files with an active claim from another render;
+- claims the chosen file for a configurable lease period (default 180 minutes);
+- downloads it atomically into `ComfyUI/input/meetmap_drive/`;
+- returns a native ComfyUI `VIDEO`, Drive file id and claim token.
+
+`MeetMapGoogleDriveMarkProcessed` runs only after the final `SaveVideo` dependency succeeds. It verifies the claim token, marks the Drive file processed, clears the claim, and can optionally move the source video into a processed folder.
+
+If a render fails before finalization, the claim expires and the source video becomes eligible again after the lease timeout.
+
+### RunPod environment
+
+Do not place Google credentials inside the workflow JSON or GitHub repo.
+
+Set these as RunPod environment variables / secrets:
+
+```text
+GOOGLE_SERVICE_ACCOUNT_JSON=<full service account JSON>
+MEETMAP_MOTION_DRIVE_FOLDER_ID=<Drive folder id>
+MEETMAP_MOTION_PROCESSED_FOLDER_ID=<optional processed folder id>
+```
+
+Alternatively set `GOOGLE_SERVICE_ACCOUNT_FILE` to a mounted credential JSON path.
+
+Share the source Drive folder with the service-account email as **Editor**. Editor access is required for the default claim/processed queue behavior.
+
+A safe variable-name template is included at:
+
+`runpod_scail_v3.env.example`
+
+### Creator references
+
+The installer copies repo-managed references from:
+
+`refs/creators/creator_01/`
+
+to:
+
+`ComfyUI/input/meetmap_refs/creator_01/`
+
+The V3 workflow loads this folder automatically with `MeetMapReferenceFolderLoader`.
+
+### Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xxHalloxx/ComfyUI-MeetMap-UGC/main/install_scail2_character_swap.sh \
+  | env -u PIP_CONSTRAINT HF_TOKEN="${HF_TOKEN:-}" bash
+```
+
+The installer now ensures:
+- SCAIL-2 Int8 ConvRot;
+- SCAIL-2 DPO LoRA;
+- LightX2V distilled LoRA;
+- SAM3.1;
+- Wan VAE / UMT5 / CLIP Vision;
+- FLUX.2 Klein 4B FP8;
+- FLUX.2 Qwen text encoder and VAE;
+- Google Drive Python dependencies;
+- creator reference files;
+- V2 and V3 workflow JSON files.
+
+Restart the Pod / ComfyUI process after installation.
+
+### Safety limits
+
+The Base V3 graph remains capped at 81 frames. For longer clips, use a future SCAIL-2 Extend/chunked variant instead of raising the Base limit. The Drive loader also has a configurable maximum source file size and sanitizes all downloaded filenames/paths.
+
