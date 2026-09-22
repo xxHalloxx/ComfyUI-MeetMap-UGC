@@ -1,6 +1,6 @@
 {
   "id": "b2d88336-b9aa-43ff-b71d-4cf37fa9de68",
-  "revision": 5,
+  "revision": 6,
   "last_node_id": 46,
   "last_link_id": 79,
   "nodes": [
@@ -1272,18 +1272,18 @@
           "link": null
         },
         {
-          "label": "distill_lora",
+          "label": "distill_lora_optional",
           "name": "lora_name",
-          "type": "COMBO",
+          "type": "STRING",
           "widget": {
             "name": "lora_name"
           },
           "link": null
         },
         {
-          "label": "dpo_lora",
+          "label": "dpo_lora_optional",
           "name": "lora_name_1",
-          "type": "COMBO",
+          "type": "STRING",
           "widget": {
             "name": "lora_name_1"
           },
@@ -3661,11 +3661,11 @@
           {
             "id": "6ccae991-51d7-4c8e-adc8-c7f6377d681b",
             "name": "lora_name",
-            "type": "COMBO",
+            "type": "STRING",
             "linkIds": [
               509
             ],
-            "label": "distill_lora",
+            "label": "distill_lora_optional",
             "pos": [
               -290.984375,
               4494
@@ -3674,11 +3674,11 @@
           {
             "id": "30772913-ecf9-44f4-a638-2824404b24fb",
             "name": "lora_name_1",
-            "type": "COMBO",
+            "type": "STRING",
             "linkIds": [
               565
             ],
-            "label": "dpo_lora",
+            "label": "dpo_lora_optional",
             "pos": [
               -290.984375,
               4514
@@ -3818,77 +3818,88 @@
         "nodes": [
           {
             "id": 322,
-            "type": "LoraLoaderModelOnly",
+            "type": "MeetMapOptionalLoraModelLoader",
             "pos": [
               300,
               3590
             ],
             "size": [
-              590,
-              140
+              410,
+              190
             ],
             "flags": {},
             "order": 5,
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "model",
                 "name": "model",
                 "type": "MODEL",
                 "link": 563
               },
               {
-                "localized_name": "lora_name",
-                "name": "lora_name",
-                "type": "COMBO",
+                "name": "preferred_lora",
+                "type": "STRING",
                 "widget": {
-                  "name": "lora_name"
+                  "name": "preferred_lora"
                 },
                 "link": 509
               },
               {
-                "localized_name": "strength_model",
                 "name": "strength_model",
                 "type": "FLOAT",
                 "widget": {
                   "name": "strength_model"
                 },
                 "link": null
+              },
+              {
+                "name": "enabled",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "enabled"
+                },
+                "link": null
+              },
+              {
+                "name": "fallback_loras",
+                "type": "STRING",
+                "widget": {
+                  "name": "fallback_loras"
+                },
+                "link": null
               }
             ],
             "outputs": [
               {
-                "localized_name": "MODEL",
-                "name": "MODEL",
+                "name": "model",
                 "type": "MODEL",
                 "links": [
                   398,
                   425
                 ]
+              },
+              {
+                "name": "status",
+                "type": "STRING",
+                "links": []
               }
             ],
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
-              "cnr_id": "comfy-core",
-              "ver": "0.24.0",
-              "models": [
-                {
-                  "name": "lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
-                  "url": "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
-                  "directory": "loras"
-                }
-              ]
-            },
+            "properties": {},
             "widgets_values": [
               "lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
-              0.8
+              0.8,
+              true,
+              ""
             ],
             "widgets_values_named": {
-              "lora_name": "lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
-              "strength_model": 0.8
+              "preferred_lora": "lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
+              "strength_model": 0.8,
+              "enabled": true,
+              "fallback_loras": ""
             },
             "color": "#223",
-            "bgcolor": "#335"
+            "bgcolor": "#335",
+            "title": "OPTIONAL DISTILL LoRA · AUTO FALLBACK"
           },
           {
             "id": 323,
@@ -6501,74 +6512,85 @@
           },
           {
             "id": 363,
-            "type": "LoraLoaderModelOnly",
+            "type": "MeetMapOptionalLoraModelLoader",
             "pos": [
               310,
               3390
             ],
             "size": [
-              580,
-              140
+              410,
+              190
             ],
             "flags": {},
             "order": 41,
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "model",
                 "name": "model",
                 "type": "MODEL",
                 "link": 562
               },
               {
-                "localized_name": "lora_name",
-                "name": "lora_name",
-                "type": "COMBO",
+                "name": "preferred_lora",
+                "type": "STRING",
                 "widget": {
-                  "name": "lora_name"
+                  "name": "preferred_lora"
                 },
                 "link": 565
               },
               {
-                "localized_name": "strength_model",
                 "name": "strength_model",
                 "type": "FLOAT",
                 "widget": {
                   "name": "strength_model"
                 },
                 "link": null
+              },
+              {
+                "name": "enabled",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "enabled"
+                },
+                "link": null
+              },
+              {
+                "name": "fallback_loras",
+                "type": "STRING",
+                "widget": {
+                  "name": "fallback_loras"
+                },
+                "link": null
               }
             ],
             "outputs": [
               {
-                "localized_name": "MODEL",
-                "name": "MODEL",
+                "name": "model",
                 "type": "MODEL",
                 "links": [
                   566
                 ]
+              },
+              {
+                "name": "status",
+                "type": "STRING",
+                "links": []
               }
             ],
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
-              "cnr_id": "comfy-core",
-              "ver": "0.24.0",
-              "models": [
-                {
-                  "name": "wan2.1_SCAIL_2_DPO_lora_bf16.safetensors",
-                  "url": "https://huggingface.co/Comfy-Org/SCAIL-2/resolve/main/loras/wan2.1_SCAIL_2_DPO_lora_bf16.safetensors",
-                  "directory": "loras"
-                }
-              ]
-            },
+            "properties": {},
             "widgets_values": [
               "wan2.1_SCAIL_2_DPO_lora_bf16.safetensors",
-              1
+              1,
+              true,
+              ""
             ],
             "widgets_values_named": {
-              "lora_name": "wan2.1_SCAIL_2_DPO_lora_bf16.safetensors",
-              "strength_model": 1
-            }
+              "preferred_lora": "wan2.1_SCAIL_2_DPO_lora_bf16.safetensors",
+              "strength_model": 1,
+              "enabled": true,
+              "fallback_loras": ""
+            },
+            "title": "OPTIONAL DPO LoRA · AUTO FALLBACK"
           },
           {
             "id": 364,
@@ -7311,7 +7333,7 @@
             "origin_slot": 14,
             "target_id": 322,
             "target_slot": 1,
-            "type": "COMBO"
+            "type": "STRING"
           },
           {
             "id": 510,
@@ -7447,7 +7469,7 @@
             "origin_slot": 15,
             "target_id": 363,
             "target_slot": 1,
-            "type": "COMBO"
+            "type": "STRING"
           },
           {
             "id": 566,
